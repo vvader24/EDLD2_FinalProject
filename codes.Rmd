@@ -1,0 +1,862 @@
+---
+title: "World Values Survey data"
+author: "Vinita Vader"
+date: "27th January 2021"
+output:
+  html_document:
+    toc: yes
+editor_options: 
+  chunk_output_type: console
+  
+---
+
+
+```{r setup, include=FALSE}
+options(Encoding="UTF-8")
+knitr::opts_chunk$set(echo = FALSE,
+                      warnings = FALSE,
+                      message = FALSE,
+                      errors = TRUE,
+                      eval = TRUE,
+                      fig.width = 8, fig.height = 7)
+
+library(tidyverse) #data wrangling
+library(dplyr)
+library(rio) #data import
+library(here) #call data
+library(janitor) #clean data col names
+library(stringr) #
+library(forcats) #
+library(ggplot2) #plotting data
+library(esvis) #effect size
+library(kableExtra) #print pretty tables
+library(papaja) #in line code
+here() #look at the path
+library(leaflet)
+remotes::install_github("emlaet/wwmetrics")
+library(wwmetrics)
+cd = data("CultDist")
+View(cd)
+
+options(tibble.print_max = 10) #print first 50 rows
+```
+
+
+# Data import and clean
+
+```{r data_cleaning,include=TRUE, echo=TRUE, eval=TRUE}
+raw.data = import(here("data", "World_Values_Survey_Wave_7_Inverted_R_v1_5.rdata"), setclass = "tb_df") %>% 
+  characterize() %>% 
+  clean_names()
+
+#names(raw.data)
+#View(raw.data)
+
+
+#renaming, recoding levels in the data for required variables
+clean.data = raw.data %>% 
+  #step 1 = select variables to be used
+  select(b_country_alpha, q106, q107, q108, q109, q111, q289cs9, q262, q152, q170p, q173p, q169p, q238p, q21p, o1_longitude, o2_latitude, q260) %>% #q260 - gender
+  #step 2 = rename variables being used
+  mutate(country = factor(b_country_alpha), 
+         rel.denom = factor(q289cs9)) %>% 
+  #drop those NAs, no missing values
+  drop_na() %>% 
+  #reverse coding
+  mutate(q107r = 11 - q107,
+         q109r = 11 - q109) %>% 
+  #recode levels to something you understand
+  mutate(rel.denom = recode(rel.denom,
+`-5`= "Other missing",
+`-4`="Not asked",
+`-2`="No answer",
+`-1`="Dont know",
+`10000000` = "Catholic, not further defined",
+`10100000` = "Roman Catholic",
+`10203000` = "Latin Church",
+`10205010` = "Byzantine Rite",
+`20000000` = "Maronite Church",
+`20200000` = "Protestant, not further defined",
+`20206022` = "Lutheran, not further defined",
+`20222370` = "Protestant Free Church of Germany",
+`20302000` = "Evangelical Lutheran Church in Russia, Ukraine, Kazakhstan",
+`20400000` = "Presbyterianism",
+`20600000` = "Anglican, not further defined",
+`20636010` = "Baptist, not further defined",
+`20700000` = "Evangelical Baptist Union of Ukraine",
+`20720060` = "Methodist, not further defined",
+`20804000` = "The Salvation Army",
+`20805000` = "Adventist movement (Sunday observing)",
+`20805020` = "Adventist movement (Seventh Day Sabbath/Saturday observing) Seventh-day Adventist Church",
+`21000000` = "Plymouth Brethren, not further defined",
+`21101010` = "New Apostolic Church",
+`21200000` = "Pentecostal and Charismatic, not further defined",
+`21212050` = "Australian Christian Church (Asemblies of God)",
+`21218000` = "Celestial Church of Christ",
+`21226000` = "Church of the Foursquare Gospel",
+`21283005` = "Churches of Christ in Australia",
+`21285030` = "Born Again Movement",
+`21319000` = "United Church of Christ in the Philippines",
+`21320000` = "Uniting Church in Australia",
+`21321050` = "United Evangelical Church in Nigeria",
+`21401250` = "Assembly of God",
+`21603100` = "Brotherhood of the Cross and Star",
+`21621100` = "Protestant Churches without free churches (Germany)",
+`30100000` = "Eastern Orthodox, not further defined",
+`30106000` = "Russian Orthodox Church",
+`30108000` = "Serbian Orthodox Church",
+`30111000` = "Cypriot Orthodox Church",
+`30112000` = "Orthodox Church of Greece",
+`30117000` = "Orthodox Church of Ukraine",
+`30202001` = "Armenian Apostolic Church",
+`30202009` = "Ethiopian Orthodox Tewahedo Church",
+`40000000` = "Judaism",
+`50000000` = "Islam, not further defined",
+`50101000` = "Sunni",
+`50202000` = "Shia",
+`50302000` = "Ibadi",
+`50500010` = "Druze",
+`50500060` = "Bahai Faith",
+`50500080` = "Second Advent; Parousia",
+`60000000` = "Hindu",
+`70000000` = "Buddhist",
+`70200000` = "Hoahaoism",
+`80000000` = "Other Christian, not further defined",
+`80213100` = "American Israelism and Latter Day Saint movement",
+`80213122` = "Mormons",
+`80213139` = "World Missionary Movement",
+`80213304` = "Jehovah's Witnesses",
+`80213401` = "La Luz del Mundo",
+`80213501` = "Iglesia ni Cristo (Church of Christ)",
+`80213502` = "Members Church of God International",
+`80217003` = "Church of God (Seventh-Day)",
+`80400035` = "Evangelicalism",
+`80400037` = "Gnosticism",
+`80502002` = "Cao Đài",
+`80502010` = "Santeria",
+`90000000` = "Other; nfd",
+`90101000` = "Taoism (Han Chinese)",
+`90102000` = "Confucianists",
+`90103000` = "Yiguandao",
+`90104000` = "Xuanyuan jiao",
+`90105000` = "Cihui Tang",
+`90200000` = "Ethnic religions excluding some in separate categories",
+`90201115` = "Wicca-Pagan` Witchcraft",
+`90202120` = "Mandaeism",
+`90300000` = "African traditional religions",
+`90400000` = "Sikhism",
+`90500000` = "Spiritism",
+`90800000` = "Neo-paganism",
+`100000020`= "Noneligious",
+`100000030`= "Agnostic",
+`100000040`= "Atheist"), 
+country = recode(b_country_alpha,
+              "AND" = "Andorra",
+              "ARG" = "Argentina", 
+              "AUS" = "Australia", 
+              "BGD" = "Bangladesh", 
+              "BOL" = "Bolivia", 
+              "BRA" = "Brazil", 
+              "CHL" = "Chile", 
+              "CHN" = "China", 
+              "COL" = "Colombia", 
+              "CYP" = "Cyprus", 
+              "ECU" = "Ecuador", 
+              "EGY" = "Egypt", 
+              "ETH" = "Ethipoia",
+              "DEU" = "Germany",
+              "GRC" = "Greece", 
+              "GTM" = "Guatemala", 
+              "HKG" = "Hong Kong SAR", 
+              "IDN" = "Indonesia", 
+              "IRN" ="Iran", 
+              "IRQ" = "Iraq", 
+              "JPN" = "Japan", 
+              "JOR" = "Jordan", 
+              "KAZ" = "Kazakhstan", 
+              "KGZ" = "Kyrgyzstan", 
+              "LBN" = "Lebanon",
+              "MAC" = "Macau.SAR", 
+              "MYS" = "Malaysia",
+              "MEX" = "Mexico", 
+              "MMR" = "Myanmar", 
+              "NZL" = "New Zealand", 
+              "NIC" = "Nicargua", 
+              "NGA" = "Nigeria", 
+              "PAK" = "Pakistan", 
+              "PER" = "Peru", 
+              "PHL" = "Philippines", 
+              "PRI" = "Puerto.Rico", 
+              "ROU" = "Romania", 
+              "RUS" = "Russia", 
+              "SRB" = "Serbia", 
+              "KOR" = "South.Korea", 
+              "TWN" = "Taiwan ROC", 
+              "TJK" = "Tajikistan", 
+              "THA" = "Thailand", 
+              "TUN" = "Tunisia", 
+              "TUR" = "Turkey", 
+              "UKR" = "Ukraine", 
+              "USA" = "United States", 
+              "VNM" = "Vietnam",
+              "ZWE" = "Zimbabwe")) 
+
+
+#Countries included in this dataset
+clean.data %>% 
+  select(country) %>% 
+  group_by(country) %>% 
+  count() %>% 
+  rownames_to_column() %>% 
+   kbl() %>%
+   kable_styling(fixed_thead = T) 
+
+
+country_coord = clean.data %>% 
+  select(country, o1_longitude, o2_latitude) %>%
+  group_by(country) %>% 
+  summarise(mean_long = mean(o1_longitude),
+         mean_lat = mean(o2_latitude))
+  
+
+  
+```
+
+# Data information
+
+I am using the [7th wave of the World Values Survey data](https://www.worldvaluessurvey.org/WVSDocumentationWV7.jsp) for this project. It is a large dataset consisting of 48 countries and a sample size of `r printnum(nrow(data))`. I intend to look at countrywise differences across indices/individual items in the questionnaire. It includes items measuring social values, attitudes, political and cultural regimes, postmaterialism to name a few. Following are some examples of codes which I intend to explore in order to understand cross ciuntry differences. 
+
+# Examples of description plots 
+## Defense
+   - "defense is important"
+```{r include=TRUE, echo=TRUE, eval=TRUE}
+
+df1 = clean.data %>% 
+  select(country, q152) %>%
+  group_by(country, q152) %>% 
+  count() %>% 
+  pivot_wider(names_from = "q152", values_from = n) %>% 
+  mutate(`4` = replace_na(`4`, 0)) %>% #replace the pesky NA with 0
+  mutate(total.n = sum(`1`, `2`, `3`, `4`)) %>% 
+  pivot_longer(cols = c(`1`, `2`, `3`, `4`), names_to = "q152", values_to = "importance") %>% 
+  mutate("perc.imp" = (importance/total.n)*100) %>% 
+  filter(q152 == "2") %>% #defense is important
+  arrange(desc(perc.imp)) %>% 
+  data.frame()%>%
+  as_tibble() %>% 
+  arrange(desc(perc.imp))
+
+df1.map = left_join(country_coord, df1, "country")
+
+library(leaflet)
+map = leaflet(df1.map)
+# View(df1.map)
+
+
+#circles with color gradient
+colors = c("grey", "blue")
+pal = colorFactor(colors, df1.map$perc.imp)
+leaflet() %>% 
+  addTiles() %>% 
+  addCircleMarkers(data = df1.map, lat = ~mean_lat, lng = ~mean_long, radius = ~2, color = ~pal(perc.imp))
+
+leaflet() %>% 
+  addTiles() %>% 
+  addPolygons(data = df1.map)
+
+pal <- colorNumeric(
+  palette = "Blues",
+  domain = df1.map$perc.imp)
+
+map %>% 
+  addPolygons()
+
+map %>% 
+    addPolygons(stroke = FALSE, smoothFactor = 0.2, fillOpacity = 1,  lng = mean_long,
+  lat = mean_lat,
+    color = ~pal(perc.imp))
+
+# color of the country 
+# Create a continuous palette function
+pal <- colorNumeric(
+  palette = "Blues",
+  domain = df1.map$perc.imp)
+
+# Apply the function to provide RGB colors to addPolygons
+library(rgdal)
+countries = readOGR("https://raw.githubusercontent.com/datasets/geo-boundaries-world-110m/master/countries.geojson")
+
+countries = (readOGR(here("data", "world.geojson")))
+View(countries)
+
+map <- leaflet(countries)
+
+
+pal <- colorNumeric(
+  palette = "Blues",
+  domain = countries$gdp_md_est)
+
+map %>%
+  addPolygons(stroke = FALSE, smoothFactor = 0.2, fillOpacity = 1,
+    color = ~pal(gdp_md_est))
+?addPolygons
+df1 %>% 
+ kbl() %>%
+ kable_styling(fixed_thead = T)
+
+df1 %>% 
+  select(country, perc.imp) %>%
+  mutate(perc.imp = as.integer(perc.imp)) %>% 
+  ggplot(aes(x = fct_reorder(country, perc.imp), y = perc.imp))+
+   geom_bar(stat = "identity", fill = "cornflowerblue") +
+   coord_flip() +
+   theme_minimal()
+  
+```
+
+## Religious pride
+   - "The only acceptable religion is my religion"
+```{r include=TRUE, echo=TRUE, eval=FALSE}
+clean.data %>% 
+  select(country, q170p) %>%
+  group_by(country, q170p) %>% 
+  count() %>% 
+  pivot_wider(names_from = "q170p", values_from = n) %>% 
+  mutate(total.n = sum(`1`, `2`, `3`, `4`)) %>% 
+  pivot_longer(cols = c(`1`, `2`, `3`, `4`), names_to = "q170p", values_to = "agreement") %>% 
+  mutate("perc.agree" = (agreement/total.n)*100) %>% 
+  filter(q170p == "1") %>% #1 = strongly agree
+  arrange(desc(perc.agree)) %>% 
+  data.frame()%>% 
+  dplyr::slice_head(n = 10)
+```
+
+## Religiousness
+   - "Independently of whether you attend religious services or not, would you say you are...?"
+```{r include=TRUE, echo=TRUE, eval=FALSE}   
+clean.data %>% 
+  select(country, q173p) %>%
+  group_by(country, q173p) %>% 
+  count() %>% 
+  pivot_wider(names_from = "q173p", values_from = n) %>% 
+  mutate(`1` = replace_na(`1`, 0)) %>% #replace the pesky NA with 0
+  mutate(total.n = sum(`1`, `2`, `3`)) %>% 
+  pivot_longer(cols = c(`1`, `2`, `3`), names_to = "q173p", values_to = "religious") %>% 
+  mutate("perc.religious" = (religious/total.n)*100) %>% 
+  filter(q173p == "1") %>% #1 = religious
+  arrange(desc(perc.religious)) %>% 
+  data.frame()%>% 
+  dplyr::slice_head(n = 10)
+```  
+
+## Religiousness
+   - "Whenever science and religion conflict, religion is always right"
+```{r include=TRUE, echo=TRUE, eval=FALSE}   
+clean.data %>% 
+  select(country, q169p) %>%
+  group_by(country, q169p) %>% 
+  count() %>% 
+  pivot_wider(names_from = "q169p", values_from = n) %>% 
+  mutate(`1` = replace_na(`1`, 0)) %>% #replace the pesky NA with 0
+  mutate(total.n = sum(`1`, `2`, `3`)) %>% 
+  pivot_longer(cols = c(`1`, `2`, `3`), names_to = "q169p", values_to = "rel.right") %>% 
+  mutate("perc_rel.right" = (rel.right/total.n)*100) %>% 
+  filter(q169p == "1") %>% #1 = strongly agree that - Whenever science and religion conflict, religion is always right
+  arrange(desc(perc_rel.right)) %>% 
+  data.frame()%>% 
+  dplyr::slice_head(n = 10)
+```
+
+## Democratic orientation
+   - "Having a democratic political system"
+```{r include=TRUE, echo=TRUE, eval=FALSE}   
+
+clean.data %>% 
+  select(country, q238p) %>%
+  group_by(country, q238p) %>% 
+  count() %>% 
+  pivot_wider(names_from = "q238p", values_from = n) %>% 
+  mutate(total.n = sum(`1`, `2`, `3`, `4`)) %>% 
+  pivot_longer(cols = c(`1`, `2`, `3`, `4`), names_to = "q238p", values_to = "non.democratic") %>% 
+  mutate("perc_non.democratic" = (non.democratic/total.n)*100) %>% 
+  filter(q238p == "4") %>% #1 = Very bad - Having a democratic political system
+  arrange(desc(perc_non.democratic)) %>% 
+  data.frame()%>% 
+  dplyr::slice_head(n = 10)
+```
+
+## Immigrants
+   - "not have as neighbors"
+```{r include=TRUE, echo=TRUE, eval=FALSE}   
+  
+clean.data %>% 
+  select(country, q21p) %>%
+  group_by(country, q21p) %>% 
+  count() %>% 
+  pivot_wider(names_from = "q21p", values_from = n) %>% 
+  mutate(total.n = sum(`1`, `0`)) %>% 
+  pivot_longer(cols = c(`1`, `0`), names_to = "q21p", values_to = "immigrants") %>% 
+  mutate("perc_immigrants" = (immigrants/total.n)*100) %>% 
+  filter(q21p == "1") %>% #1 = not have as neighbors
+  arrange(desc(perc_immigrants)) %>% 
+  data.frame()
+#%>% 
+  dplyr::slice_head(n = 10)
+  
+
+
+```
+
+## Economic Values
+```{r include=TRUE, echo=TRUE, eval=FALSE}
+
+capitalism.d = clean.data %>%
+  filter(q111 %in% c("1", "2")) %>% 
+  rowwise() %>% 
+  mutate(capitalism = sum(q106, q107r, q108, q109r, q111)) %>%
+  mutate(capitalism = as.integer(capitalism)) %>%
+  select(country, capitalism, rel.denom, q262) %>% 
+  data_frame()
+
+  
+cd = coh_d(capitalism.d, capitalism~country) #compute effect sizes for all country pairs
+
+# ANDORRA
+cd %>% 
+  filter(country_ref == "Andorra") %>% 
+  mutate(highlight = ifelse(country_foc == 'Chile', T, F)) %>%
+  select(country_foc, coh_d, highlight) %>% 
+  ggplot(aes(x = fct_reorder(country_foc, abs(coh_d)), y = coh_d, fill = highlight)) +
+        geom_bar(stat = "identity", aes(fill = highlight), alpha = .8)+ 
+  scale_fill_manual(values = c("cornflowerblue", rep("coral1", 46)))+
+  theme_minimal(base_size = 8)+
+        coord_flip() +  
+        labs(x = "Countries",
+             y = "Cohen's d",
+             title = "Distance from Andorra")+
+  guides(fill=FALSE)
+  
+
+# Bangladesh
+cd %>% 
+  filter(country_ref == "Bangladesh") %>% 
+  mutate(highlight = ifelse(country_foc == 'Vietnam', T, F)) %>%
+  select(country_foc, coh_d, highlight) %>% 
+  ggplot(aes(x = fct_reorder(country_foc, abs(coh_d)), y = coh_d, fill = highlight)) +
+        geom_bar(stat = "identity", aes(fill = highlight), alpha = .8)+ 
+  scale_fill_manual(values = c("cornflowerblue", rep("coral1", 46)))+
+  theme_minimal(base_size = 8)+
+        coord_flip() +  
+        labs(x = "Countries",
+             y = "Cohen's d",
+             title = "Distance from Bangladesh")+
+  guides(fill=FALSE)
+
+# USA
+cd %>% 
+  filter(country_ref == "United States") %>% 
+  mutate(highlight = ifelse(country_foc == 'Chile', T, F)) %>%
+  select(country_foc, coh_d, highlight) %>% 
+  ggplot(aes(x = fct_reorder(country_foc, abs(coh_d)), y = coh_d, fill = highlight)) +
+        geom_bar(stat = "identity", aes(fill = highlight), alpha = .8)+ 
+  scale_fill_manual(values = c("cornflowerblue", rep("coral1", 46)))+
+  theme_minimal(base_size = 8)+
+        coord_flip() +  
+        labs(x = "Countries",
+             y = "Cohen's d",
+             title = "Distance from USA")+
+  guides(fill=FALSE)
+
+#Countries with GDP growth greater than 5% in 2017
+# Bangladesh, Malaysia, Vietnam, Myanmar, Indonesia, China, Phillipines, Tajikistan, Macau.SAR, Romania, Pakistan, Ethiopia  \
+
+#High income economies
+# Andorra, Greece, Macau SAR, Taiwan, Hong Kong, China
+
+# Economy based on 
+# 
+#  tourism             Andorra",
+# service, manufacturing   = "Argentina", 
+# service = "Australia", 
+# service =  "Bangladesh", 
+# mining =  "BOL" = "Bolivia", 
+# mining             "BRA" = "Brazil", 
+# industry              "CHL" = "Chile", 
+# manufacturing, exports  "CHN" = "China", 
+# manufacturing              "COL" = "Colombia", 
+# tourism   "CYP" = "Cyprus", 
+# manufacturing    "ECU" = "Ecuador", 
+# agriculture              "EGY" = "Egypt", 
+# agriculture             "ETH" = "Ethipoia",
+# exports "DEU" = "Germany",
+#  agriculture      "GRC" = "Greece", 
+#  agriculture             "GTM" = "Guatemala", 
+#  finance             "HKG" = "Hong Kong SAR", 
+#  manufacturing             "IDN" = "Indonesia", 
+#  oil             "IRN" ="Iran", 
+#  oil             "IRQ" = "Iraq", 
+# manufacturing              "JPN" = "Japan", 
+# manufacturing              "JOR" = "Jordan", 
+# oil             "KAZ" = "Kazakhstan", 
+# manufacturing              "KGZ" = "Kyrgyzstan", 
+# service              "LBN" = "Lebanon",
+# tourism              "MAC" = "Macau.SAR", 
+# manufacturing              "MYS" = "Malaysia",
+# manufacturing                "MEX" = "Mexico", 
+# agriculture              "MMR" = "Myanmar", 
+# agriculture              "NZL" = "New Zealand", 
+# agriculture              "NIC" = "Nicargua", 
+# petroleum              "NGA" = "Nigeria", 
+# agriculture              "PAK" = "Pakistan", 
+# ----manufacturing               "PER" = "Peru", 
+# agriculture               "PHL" = "Philippines", 
+# manufacturing              "PRI" = "Puerto.Rico", 
+# trade               "ROU" = "Romania", 
+# oil              "RUS" = "Russia", 
+# manufacturing              "SRB" = "Serbia", 
+# manufacturing              "KOR" = "South.Korea", 
+# manufacturing               "TWN" = "Taiwan ROC", 
+#               "TJK" = "Tajikistan", 
+# manufacturing              "THA" = "Thailand", 
+# agriculture              "TUN" = "Tunisia", 
+# manufacturing              "TUR" = "Turkey", 
+# manufacturing              "UKR" = "Ukraine", 
+# consumer spending              "USA" = "United States", 
+# socialist, ag+ind              "VNM" = "Vietnam",
+#               "ZWE" = "Zimbabwe"
+```
+
+# Heirarchical clustering
+```{r}
+remotes::install_github("fivethirtyeightdata/fivethirtyeightdata")
+install.packages("hclust")
+library(stats)
+hc.data = clean.data %>%
+  filter(country %in% c("United Sates","Jordan")) %>% 
+  select(q106, q107r, q108, q109r) %>% 
+  drop_na() %>% 
+  scale()
+
+hc.data %>% 
+  is.na() %>% 
+  table()
+
+dist(hc.data, method = "euclidean") %>% 
+  head()
+hc.data<- as.dist(hc.data)
+hclust(hc.data, method = "ward.D")%>% 
+  head()
+  
+```
+
+
+# Unused chunks
+```{r, unused_chunks, include=TRUE, echo=FALSE, eval=FALSE}
+
+
+ eco_val.data %>%
+  filter(q111 %in% c("1", "2")) %>% 
+  rowwise() %>% 
+  mutate(capitalism = sum(q106, q107r, q108, q109r, q111)) %>%
+  select(country, capitalism, rel.denom) %>%   
+  group_by(rel.denom) %>% 
+  summarise(M.Cap = mean(capitalism))
+
+
+data %>% 
+  mutate(country = factor(b_country_alpha),
+         rel.denom = factor(q289cs9)) %>% 
+  select(country, rel.denom) %>% 
+
+  count() %>% 
+  mutate() %>% 
+  ggplot(aes(x = b_country_alpha))+
+  geom_bar()
+
+  table()
+
+a_year = factor(a_year)
+
+head()
+
+filter(country %in% c("CHN","IRN","USA","DEU", "IRQ","EGY","KOR" ))
+
+
+f = data %>% 
+   mutate(b_country_alpha = factor(b_country_alpha),
+         a_year = factor(a_year)) %>% 
+  filter(a_year %in% c("2020"))
+
+levels(factor(f$b_country_alpha))
+
+
+
+capitalism.d%>%   #getting all the means
+  group_by(country) %>% 
+  summarise(M.Cap = mean(capitalism))
+
+
+# figure out the deal with list for pivot_wider
+df = capitalism.d %>%
+     drop_na() %>% 
+     rownames_to_column() %>% 
+     pivot_wider(names_from = "country", values_from = "capitalism") %>%      as_tibble()
+
+View(df)
+df2 = df %>% 
+  dplyr::select(AND:ZWE)
+
+
+```
+
+
+# Thoughts
+  - CHALLENGES:
+     - Can't get the for loop right
+     - How to deal with large datasets (I mostly deal with large number of variables and sample sizes in my work)
+     - How to think of vidualizations for so many countries
+     
+  - LONG TERM GOAL:
+     - Try ans answer research questions like how are religious values associated with attitudes towards homosesuality. 
+     - Gain an understanding of how people are studying values, most of the work so far (about 80%, which is quite a but I guess), is based on this source of data.
+     - I intend to work on this project in a way wherein I can use this work as something which could potentially go on my website
+  
+
+
+# Try tables
+
+```{r}
+
+library(reactable)
+library(htmltools)
+
+forecasts <- import(here("data", "wwc_forecasts.csv"),setclass = "tb_df") %>% 
+  characterize() %>% 
+  clean_names()
+
+View(forecasts)
+
+rating_cols <- c("spi", "global_o", "global_d")
+group_cols <- c("group_1", "group_2", "group_3")
+knockout_cols <- c("make_round_of_16", "make_quarters", "make_semis", "make_final", "win_league")
+forecasts <- forecasts[, c("team", "points", "group", rating_cols, group_cols, knockout_cols)]
+
+rating_column <- function(maxWidth = 55, ...) {
+  colDef(maxWidth = maxWidth, align = "center", class = "cell number", ...)
+}
+
+group_column <- function(class = NULL, ...) {
+  colDef(cell = format_pct, maxWidth = 70, align = "center", class = paste("cell number", class), ...)
+}
+
+knockout_column <- function(maxWidth = 70, class = NULL, ...) {
+  colDef(
+    cell = format_pct,
+    maxWidth = maxWidth,
+    class = paste("cell number", class),
+    style = function(value) {
+      # Lighter color for <1%
+      if (value < 0.01) {
+        list(color = "#aaa")
+      } else {
+        list(color = "#111", background = knockout_pct_color(value))
+      }
+    },
+    ...
+  )
+}
+
+format_pct <- function(value) {
+  if (value == 0) "  \u2013 "    # en dash for 0%
+  else if (value == 1) "\u2713"  # checkmark for 100%
+  else if (value < 0.01) " <1%"
+  else if (value > 0.99) ">99%"
+  else formatC(paste0(round(value * 100), "%"), width = 4)
+}
+
+make_color_pal <- function(colors, bias = 1) {
+  get_color <- colorRamp(colors, bias = bias)
+  function(x) rgb(get_color(x), maxColorValue = 255)
+}
+
+off_rating_color <- make_color_pal(c("#ff2700", "#f8fcf8", "#44ab43"), bias = 1.3)
+def_rating_color <- make_color_pal(c("#ff2700", "#f8fcf8", "#44ab43"), bias = 0.6)
+knockout_pct_color <- make_color_pal(c("#ffffff", "#f2fbd2", "#c9ecb4", "#93d3ab", "#35b0ab"), bias = 2)
+
+tbl <- reactable(
+  forecasts,
+  pagination = FALSE,
+  defaultSorted = "win_league",
+  defaultSortOrder = "desc",
+  defaultColGroup = colGroup(headerClass = "group-header"),
+  columnGroups = list(
+    colGroup(name = "Team Rating", columns = rating_cols),
+    colGroup(name = "Chance of Finishing Group Stage In ...", columns = group_cols),
+    colGroup(name = "Knockout Stage Chances", columns = knockout_cols)
+  ),
+  defaultColDef = colDef(class = "cell", headerClass = "header"),
+  columns = list(
+    team = colDef(
+      defaultSortOrder = "asc",
+      minWidth = 200,
+      headerStyle = list(fontWeight = 700), 
+      cell = function(value, index) {
+        div(
+          class = "team",
+          img(class = "flag", alt = paste(value, "flag"), src = sprintf("images/%s.png", value)),
+          div(class = "team-name", value),
+          div(class = "record", sprintf("%s pts.", forecasts[index, "points"]))
+        )
+      }
+    ),
+    points = colDef(show = FALSE),
+    group = colDef(defaultSortOrder = "asc", align = "center", maxWidth = 75,
+                   class = "cell group", headerStyle = list(fontWeight = 700)),
+    spi = rating_column(format = colFormat(digits = 1)),
+    global_o = rating_column(
+      name = "Off.",
+      cell = function(value) {
+        scaled <- (value - min(forecasts$global_o)) / (max(forecasts$global_o) - min(forecasts$global_o))
+        color <- off_rating_color(scaled)
+        value <- format(round(value, 1), nsmall = 1)
+        div(class = "spi-rating", style = list(background = color), value)
+      }
+    ),
+    global_d = rating_column(
+      name = "Def.", 
+      defaultSortOrder = "asc",
+      cell = function(value) {
+        scaled <- 1 - (value - min(forecasts$global_d)) / (max(forecasts$global_d) - min(forecasts$global_d))
+        color <- def_rating_color(scaled)
+        value <- format(round(value, 1), nsmall = 1)
+        div(class = "spi-rating", style = list(background = color), value)
+      }
+    ),
+    group_1 = group_column(name = "1st Place", class = "border-left"),
+    group_2 = group_column(name = "2nd Place"),
+    group_3 = group_column(name = "3rd Place"),
+    make_round_of_16 = knockout_column(name = "Make Round of 16", class = "border-left"),
+    make_quarters = knockout_column(name = "Make Qtr-Finals"),
+    make_semis = knockout_column(name = "Make Semifinals", maxWidth = 90),
+    make_final = knockout_column(name = "Make Final"),
+    win_league = knockout_column(name = "Win World Cup")
+  ),
+  # Emphasize borders between groups when sorting by group
+  rowClass = JS("
+    function(rowInfo, state) {
+      const firstSorted = state.sorted[0]
+      if (firstSorted && firstSorted.id === 'group') {
+        const nextRow = state.pageRows[rowInfo.viewIndex + 1]
+        if (nextRow && rowInfo.row.group !== nextRow.group) {
+          return 'group-last'
+        }
+      }
+    }"
+  ),
+  showSortIcon = FALSE,
+  borderless = TRUE,
+  class = "standings-table"
+)
+
+div(class = "standings",
+  div(class = "title",
+    h2("2019 Women's World Cup Predictions"),
+    "Soccer Power Index (SPI) ratings and chances of advancing for every team"
+  ),
+  tbl,
+  "Forecast from before 3rd group matches"
+)
+```
+
+# My tables effort
+
+```{r}
+library(reactable)
+#Country with sex - 1= Male , 2= Female
+
+table.data =  clean.data %>% 
+  select(country, q260) %>% 
+  mutate(q260 = recode(q260,
+         `1` ="Male",
+         `2` = "Female")) %>% 
+  as_tibble() %>% 
+  rename(Sex = q260,
+         Country = country) %>% 
+  group_by(Country) %>%
+  count(Sex) %>% 
+  pivot_wider(names_from = Sex, values_from = n) %>% 
+  rowwise() %>%   
+  mutate(Female.perc = Female/sum(Female, Male),
+         Male.perc = Male/sum(Male, Female)) %>% 
+  select(Country, Female.perc, Male.perc) 
+    
+reactable(table.data) 
+library(htmltools)
+
+
+# Render a bar chart with a label on the left
+bar_chart <- function(label, width = "100%", height = "14px", fill = "#00bfc4", background = NULL) {
+    bar <- div(style = list(background = fill, width = width, height = height))
+    chart <- div(style = list(flexGrow = 1, marginLeft = "6px", background = background), bar)
+   div(style = list(display = "flex", alignItems = "center"), label, chart)
+}
+
+
+reactable(
+  table.data,
+  defaultSorted = "Country",
+  columns = list(
+    #Col1
+    Country = colDef(
+      name = "Country",
+      format = colFormat(prefix = "#"),
+      defaultSortOrder = "asc",
+      minWidth = 200
+      
+    ),
+    #Col2
+    Female.perc = colDef(
+      name = "Female",
+      defaultSortOrder = "desc",
+      # Render the bar charts using a custom cell render function
+      cell = function(value) {
+        # Format as percentages with 1 decimal place
+        value <- paste0(format(value * 100, nsmall = 1), "%")
+        bar_chart(value, width = value, fill = "#7fcdbb", background = "#e1e1e1")
+      },
+      # And left-align the columns
+      align = "left",
+       format = colFormat(digits = 1)
+    ),
+    #Col3
+    Male.perc = colDef(
+      name = "Male",
+      defaultSortOrder = "desc",
+       # Render the bar charts using a custom cell render function
+      cell = function(value) {
+        # Format as percentages with 1 decimal place
+        value <- paste0(format(value * 100, nsmall = 1), "%")
+        bar_chart(value, width = value, fill = "#2c7fb8", background = "#e1e1e1")
+      },
+      # And left-align the columns
+      align = "left"
+    )
+  ),
+
+  theme = reactableTheme(
+    borderColor = "#ece2f0",
+    stripedColor = "#f6f8fa",
+    highlightColor = "#f0f5f9",
+    cellPadding = "8px 12px",
+    style = list(
+      fontFamily = "sans-serif"
+    ),
+    searchInputStyle = list(width = "10%")
+  )
+)
+
+
+
+
+```
+
