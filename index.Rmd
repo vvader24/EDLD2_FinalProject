@@ -5,10 +5,186 @@ output:
     orientation: columns
     vertical_layout: fill
 ---
-
 ```{r setup, include=FALSE}
 library(flexdashboard)
+library(tidyverse) #data wrangling
+library(dplyr)
+library(rio) #data import
+library(here) #call data
+library(janitor) #clean data col names
+library(stringr) #
+library(forcats) #
+library(ggplot2) #plotting data
+library(esvis) #effect size
+library(kableExtra) #print pretty tables
+here() #look at the path
+library(reactable)
+library(htmltools)
+library(leaflet)
 ```
+
+
+# Data import and clean
+
+```{r data_cleaning,include=FALSE, echo=TRUE, eval=TRUE}
+raw.data = import(here("data", "World_Values_Survey_Wave_7_Inverted_R_v1_5.rdata"), setclass = "tb_df") %>% 
+  characterize() %>% 
+  clean_names()
+
+#renaming, recoding levels in the data for required variables
+clean.data = raw.data %>% 
+  #step 1 = select variables to be used
+  select(b_country_alpha, q106, q107, q108, q109, q111, q289cs9, q262, q152, q170p, q173p, q169p, q238p, q21p, o1_longitude, o2_latitude, q260) %>%
+  #step 2 = rename variables being used
+  mutate(country = factor(b_country_alpha), 
+         rel.denom = factor(q289cs9)) %>% 
+  #drop those NAs, no missing values
+  drop_na() %>% 
+  #reverse coding
+  mutate(q107r = 11 - q107,
+         q109r = 11 - q109) %>% 
+  #recode levels to something you understand
+  mutate(rel.denom = recode(rel.denom,
+`-5`= "Other missing",
+`-4`="Not asked",
+`-2`="No answer",
+`-1`="Dont know",
+`10000000` = "Catholic, not further defined",
+`10100000` = "Roman Catholic",
+`10203000` = "Latin Church",
+`10205010` = "Byzantine Rite",
+`20000000` = "Maronite Church",
+`20200000` = "Protestant, not further defined",
+`20206022` = "Lutheran, not further defined",
+`20222370` = "Protestant Free Church of Germany",
+`20302000` = "Evangelical Lutheran Church in Russia, Ukraine, Kazakhstan",
+`20400000` = "Presbyterianism",
+`20600000` = "Anglican, not further defined",
+`20636010` = "Baptist, not further defined",
+`20700000` = "Evangelical Baptist Union of Ukraine",
+`20720060` = "Methodist, not further defined",
+`20804000` = "The Salvation Army",
+`20805000` = "Adventist movement (Sunday observing)",
+`20805020` = "Adventist movement (Seventh Day Sabbath/Saturday observing) Seventh-day Adventist Church",
+`21000000` = "Plymouth Brethren, not further defined",
+`21101010` = "New Apostolic Church",
+`21200000` = "Pentecostal and Charismatic, not further defined",
+`21212050` = "Australian Christian Church (Asemblies of God)",
+`21218000` = "Celestial Church of Christ",
+`21226000` = "Church of the Foursquare Gospel",
+`21283005` = "Churches of Christ in Australia",
+`21285030` = "Born Again Movement",
+`21319000` = "United Church of Christ in the Philippines",
+`21320000` = "Uniting Church in Australia",
+`21321050` = "United Evangelical Church in Nigeria",
+`21401250` = "Assembly of God",
+`21603100` = "Brotherhood of the Cross and Star",
+`21621100` = "Protestant Churches without free churches (Germany)",
+`30100000` = "Eastern Orthodox, not further defined",
+`30106000` = "Russian Orthodox Church",
+`30108000` = "Serbian Orthodox Church",
+`30111000` = "Cypriot Orthodox Church",
+`30112000` = "Orthodox Church of Greece",
+`30117000` = "Orthodox Church of Ukraine",
+`30202001` = "Armenian Apostolic Church",
+`30202009` = "Ethiopian Orthodox Tewahedo Church",
+`40000000` = "Judaism",
+`50000000` = "Islam, not further defined",
+`50101000` = "Sunni",
+`50202000` = "Shia",
+`50302000` = "Ibadi",
+`50500010` = "Druze",
+`50500060` = "Bahai Faith",
+`50500080` = "Second Advent; Parousia",
+`60000000` = "Hindu",
+`70000000` = "Buddhist",
+`70200000` = "Hoahaoism",
+`80000000` = "Other Christian, not further defined",
+`80213100` = "American Israelism and Latter Day Saint movement",
+`80213122` = "Mormons",
+`80213139` = "World Missionary Movement",
+`80213304` = "Jehovah's Witnesses",
+`80213401` = "La Luz del Mundo",
+`80213501` = "Iglesia ni Cristo (Church of Christ)",
+`80213502` = "Members Church of God International",
+`80217003` = "Church of God (Seventh-Day)",
+`80400035` = "Evangelicalism",
+`80400037` = "Gnosticism",
+`80502002` = "Cao Đài",
+`80502010` = "Santeria",
+`90000000` = "Other; nfd",
+`90101000` = "Taoism (Han Chinese)",
+`90102000` = "Confucianists",
+`90103000` = "Yiguandao",
+`90104000` = "Xuanyuan jiao",
+`90105000` = "Cihui Tang",
+`90200000` = "Ethnic religions excluding some in separate categories",
+`90201115` = "Wicca-Pagan` Witchcraft",
+`90202120` = "Mandaeism",
+`90300000` = "African traditional religions",
+`90400000` = "Sikhism",
+`90500000` = "Spiritism",
+`90800000` = "Neo-paganism",
+`100000020`= "Noneligious",
+`100000030`= "Agnostic",
+`100000040`= "Atheist"), 
+country = recode(b_country_alpha,
+              "AND" = "Andorra",
+              "ARG" = "Argentina", 
+              "AUS" = "Australia", 
+              "BGD" = "Bangladesh", 
+              "BOL" = "Bolivia", 
+              "BRA" = "Brazil", 
+              "CHL" = "Chile", 
+              "CHN" = "China", 
+              "COL" = "Colombia", 
+              "CYP" = "Cyprus", 
+              "ECU" = "Ecuador", 
+              "EGY" = "Egypt", 
+              "ETH" = "Ethipoia",
+              "DEU" = "Germany",
+              "GRC" = "Greece", 
+              "GTM" = "Guatemala", 
+              "HKG" = "Hong Kong SAR", 
+              "IDN" = "Indonesia", 
+              "IRN" ="Iran", 
+              "IRQ" = "Iraq", 
+              "JPN" = "Japan", 
+              "JOR" = "Jordan", 
+              "KAZ" = "Kazakhstan", 
+              "KGZ" = "Kyrgyzstan", 
+              "LBN" = "Lebanon",
+              "MAC" = "Macau.SAR", 
+              "MYS" = "Malaysia",
+              "MEX" = "Mexico", 
+              "MMR" = "Myanmar", 
+              "NZL" = "New Zealand", 
+              "NIC" = "Nicargua", 
+              "NGA" = "Nigeria", 
+              "PAK" = "Pakistan", 
+              "PER" = "Peru", 
+              "PHL" = "Philippines", 
+              "PRI" = "Puerto.Rico", 
+              "ROU" = "Romania", 
+              "RUS" = "Russia", 
+              "SRB" = "Serbia", 
+              "KOR" = "South.Korea", 
+              "TWN" = "Taiwan ROC", 
+              "TJK" = "Tajikistan", 
+              "THA" = "Thailand", 
+              "TUN" = "Tunisia", 
+              "TUR" = "Turkey", 
+              "UKR" = "Ukraine", 
+              "USA" = "United States", 
+              "VNM" = "Vietnam",
+              "ZWE" = "Zimbabwe")) 
+```
+
+
+
+
+Country Stats
+=========================
 
 Column {data-width=650}
 -----------------------------------------------------------------------
@@ -16,9 +192,88 @@ Column {data-width=650}
 ### Chart A
 
 ```{r}
+table.data =  clean.data %>% 
+  select(country, q260) %>% 
+  mutate(q260 = recode(q260,
+         `1` ="Male",
+         `2` = "Female")) %>% 
+  as_tibble() %>% 
+  rename(Sex = q260,
+         Country = country) %>% 
+  group_by(Country) %>%
+  count(Sex) %>% 
+  pivot_wider(names_from = Sex, values_from = n) %>% 
+  rowwise() %>%   
+  mutate(Female.perc = Female/sum(Female, Male),
+         Male.perc = Male/sum(Male, Female)) %>% 
+  select(Country, Female.perc, Male.perc) 
+
+# Render a bar chart with a label on the left
+bar_chart <- function(label, width = "100%", height = "14px", fill = "#00bfc4", background = NULL) {
+    bar <- div(style = list(background = fill, width = width, height = height))
+    chart <- div(style = list(flexGrow = 1, marginLeft = "6px", background = background), bar)
+   div(style = list(display = "flex", alignItems = "center"), label, chart)
+}
+
+
+reactable(
+  table.data,
+  defaultSorted = "Country",
+  columns = list(
+    #Col1
+    Country = colDef(
+      name = "Country",
+      format = colFormat(prefix = "#"),
+      defaultSortOrder = "asc",
+      minWidth = 200
+      
+    ),
+    #Col2
+    Female.perc = colDef(
+      name = "Female",
+      defaultSortOrder = "desc",
+      # Render the bar charts using a custom cell render function
+      cell = function(value) {
+        # Format as percentages with 1 decimal place
+        value <- paste0(format(round(value * 100, 2), nsmall = 2), "%")
+        bar_chart(value, width = value, fill = "#7fcdbb", background = "#e1e1e1")
+      },
+      # And left-align the columns
+      align = "left",
+       format = colFormat(digits = 1)
+    ),
+    #Col3
+    Male.perc = colDef(
+      name = "Male",
+      defaultSortOrder = "desc",
+       # Render the bar charts using a custom cell render function
+      cell = function(value) {
+        # Format as percentages with 1 decimal place
+        value <- paste0(format(round(value * 100, 2), nsmall = 2), "%")
+        bar_chart(value, width = value, fill = "#2c7fb8", background = "#e1e1e1")
+      },
+      # And left-align the columns
+      align = "left"
+    )
+  ),
+
+  theme = reactableTheme(
+    borderColor = "#ece2f0",
+    stripedColor = "#f6f8fa",
+    highlightColor = "#f0f5f9",
+    cellPadding = "8px 12px",
+    style = list(
+      fontFamily = "sans-serif"
+    ),
+    searchInputStyle = list(width = "10%")
+  )
+)
 
 ```
 
+
+World Map
+=========================
 Column {data-width=350}
 -----------------------------------------------------------------------
 
@@ -26,11 +281,68 @@ Column {data-width=350}
 
 ```{r}
 
+country_coord = clean.data %>% 
+  select(country, o1_longitude, o2_latitude) %>%
+  group_by(country) %>% 
+  summarise(mean_long = mean(o1_longitude),
+         mean_lat = mean(o2_latitude))
+
+
+df1 = clean.data %>% 
+  select(country, q152) %>%
+  group_by(country, q152) %>% 
+  count() %>% 
+  pivot_wider(names_from = "q152", values_from = n) %>% 
+  mutate(`4` = replace_na(`4`, 0)) %>% #replace the pesky NA with 0
+  mutate(total.n = sum(`1`, `2`, `3`, `4`)) %>% 
+  pivot_longer(cols = c(`1`, `2`, `3`, `4`), names_to = "q152", values_to = "importance") %>% 
+  mutate("perc.imp" = (importance/total.n)*100) %>% 
+  filter(q152 == "2") %>% #defense is important
+  arrange(desc(perc.imp)) %>% 
+  data.frame()%>%
+  as_tibble() %>% 
+  arrange(desc(perc.imp))
+
+df1.map = left_join(country_coord, df1, "country")
+
+#circles with color gradient
+colors = c("grey", "blue")
+pal = leaflet::colorFactor(colors, df1.map$perc.imp)
+leaflet() %>% 
+  addTiles() %>% 
+  addCircleMarkers(data = df1.map, lat = ~mean_lat, lng = ~mean_long, radius = ~2, color = ~pal(perc.imp))
+
+
 ```
 
+Economic Values
+=========================
 ### Chart C
 
 ```{r}
+capitalism.d = clean.data %>%
+  filter(q111 %in% c("1", "2")) %>% 
+  rowwise() %>% 
+  mutate(capitalism = sum(q106, q107r, q108, q109r, q111)) %>%
+  mutate(capitalism = as.integer(capitalism)) %>%
+  select(country, capitalism, rel.denom, q262) %>% 
+  data_frame()
 
+  
+cd = coh_d(capitalism.d, capitalism~country) #compute effect sizes for all country pairs
+
+# USA
+cd %>% 
+  filter(country_ref == "United States") %>% 
+  mutate(highlight = ifelse(country_foc == 'Chile', T, F)) %>%
+  select(country_foc, coh_d, highlight) %>% 
+  ggplot(aes(x = fct_reorder(country_foc, abs(coh_d)), y = coh_d, fill = highlight)) +
+        geom_bar(stat = "identity", aes(fill = highlight), alpha = .8)+ 
+  scale_fill_manual(values = c("cornflowerblue", rep("coral1", 46)))+
+  theme_minimal(base_size = 8)+
+        coord_flip() +  
+        labs(x = "Countries",
+             y = "Cohen's d",
+             title = "Distance from USA")+
+  guides(fill=FALSE)
 ```
-
