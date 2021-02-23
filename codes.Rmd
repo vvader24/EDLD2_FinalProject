@@ -37,6 +37,12 @@ remotes::install_github("emlaet/wwmetrics")
 library(wwmetrics)
 cd = data("CultDist")
 View(cd)
+devtools::install_github("tidyverse/googledrive")
+library(googledrive)
+
+dl <- drive_download(
+  "World_Values_Survey_Wave_7_Inverted_R_v1_5.rdata")
+
 
 options(tibble.print_max = 10) #print first 50 rows
 ```
@@ -46,6 +52,14 @@ options(tibble.print_max = 10) #print first 50 rows
 
 ```{r data_cleaning,include=TRUE, echo=TRUE, eval=TRUE}
 raw.data = import(here("data", "World_Values_Survey_Wave_7_Inverted_R_v1_5.rdata"), setclass = "tb_df") %>% 
+  characterize() %>% 
+  clean_names()
+
+#use this code when forking
+dl = drive_download(
+  "World_Values_Survey_Wave_7_Inverted_R_v1_5.rdata")
+
+raw.data = import("World_Values_Survey_Wave_7_Inverted_R_v1_5.rdata", setclass = "tb_df") %>% 
   characterize() %>% 
   clean_names()
 
