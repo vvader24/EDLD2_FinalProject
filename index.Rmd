@@ -21,12 +21,22 @@ here() #look at the path
 library(reactable)
 library(htmltools)
 library(leaflet)
+library(rgdal)
+library(sf)
 ```
 
 
-# Data import and clean
-
 ```{r data_cleaning,include=FALSE, echo=TRUE, eval=TRUE}
+#use this code when forking for importing data
+#--------
+# dl = drive_download(
+#   "World_Values_Survey_Wave_7_Inverted_R_v1_5.rdata")
+# 
+# raw.data = import("World_Values_Survey_Wave_7_Inverted_R_v1_5.rdata", setclass = "tb_df") %>% 
+#   characterize() %>% 
+#   clean_names()
+#--------
+
 raw.data = import(here("data", "World_Values_Survey_Wave_7_Inverted_R_v1_5.rdata"), setclass = "tb_df") %>% 
   characterize() %>% 
   clean_names()
@@ -305,14 +315,33 @@ df1 = clean.data %>%
 
 df1.map = left_join(country_coord, df1, "country")
 
-#circles with color gradient
-colors = c("grey", "blue")
-pal = leaflet::colorFactor(colors, df1.map$perc.imp)
-leaflet() %>% 
+# Code to create and load world polygon shapefiles
+#dir.create(here("shapefile"))
+#download.file("http://thematicmapping.org/downloads/TM_WORLD_BORDERS_SIMPL-0.3.zip" , 
+              # destfile = here("shapefile", "world_shape_file.zip"))
+
+# unzip(here("shapefile", "world_shape_file.zip"),
+#       exdir = here("shapefiles"))
+
+world_spdf <- readOGR( 
+  dsn = here("shapefiles"), 
+  layer = "TM_WORLD_BORDERS_SIMPL-0.3",
+  verbose = FALSE
+) %>% 
+  st_as_sf()
+
+d <- left_join(world_spdf, df1, by = c("NAME" = "country"))
+
+# create palette
+pal <- colorNumeric(palette = "viridis", 
+                    domain = na.omit(d$perc.imp),
+                    na.color = "transparent")
+
+leaflet(d) %>% 
   addTiles() %>% 
-  addCircleMarkers(data = df1.map, lat = ~mean_lat, lng = ~mean_long, radius = ~2, color = ~pal(perc.imp))
-
-
+  setView( lat = 25, lng = 50 , zoom = 1) %>% 
+  addPolygons(fillColor = ~pal(perc.imp), stroke = FALSE) %>% 
+  addLegend(pal = pal, values = ~perc.imp)
 ```
 
 Economic Values
