@@ -5,7 +5,7 @@ output:
     orientation: columns
     vertical_layout: fill
 ---
-```{r setup, include=FALSE}
+```{r libraries, include=FALSE}
 library(flexdashboard)
 library(tidyverse) #data wrangling
 library(dplyr)
@@ -23,6 +23,8 @@ library(htmltools)
 library(leaflet)
 library(rgdal)
 library(sf)
+
+
 ```
 
 
@@ -41,13 +43,18 @@ raw.data = import(here("data", "World_Values_Survey_Wave_7_Inverted_R_v1_5.rdata
   characterize() %>% 
   clean_names()
 
+#names(raw.data)
+#q262 - age 
+#q263  - 1. Born in this [country]; 2. Immigrant to this [country] (born outside this country) 
+
 #renaming, recoding levels in the data for required variables
 clean.data = raw.data %>% 
   #step 1 = select variables to be used
-  select(b_country_alpha, q106, q107, q108, q109, q111, q289cs9, q262, q152, q170p, q173p, q169p, q238p, q21p, o1_longitude, o2_latitude, q260) %>%
+  select(b_country_alpha, q106, q107, q108, q109, q111, q289cs9, q262, q152, q170p, q173p, q169p, q238p, q21p, o1_longitude, o2_latitude, q260, q262, q263) %>%
   #step 2 = rename variables being used
   mutate(country = factor(b_country_alpha), 
-         rel.denom = factor(q289cs9)) %>% 
+         rel.denom = factor(q289cs9),
+         Age = as.numeric(q262)) %>% 
   #drop those NAs, no missing values
   drop_na() %>% 
   #reverse coding
@@ -187,19 +194,24 @@ country = recode(b_country_alpha,
               "UKR" = "Ukraine", 
               "USA" = "United States", 
               "VNM" = "Vietnam",
-              "ZWE" = "Zimbabwe")) 
+              "ZWE" = "Zimbabwe"),
+  Native = recode(q263,
+                  "1" = "native",
+                  "2" = "immigrant"),
+  Sex = recode(q260,
+         `1` ="Male",
+         `2` = "Female")) 
 ```
-
 
 
 
 Country Stats
 =========================
 
-Column {data-width=650}
+Column {data-width=400}
 -----------------------------------------------------------------------
 
-### Chart A
+### Draft 1
 
 ```{r}
 table.data =  clean.data %>% 
@@ -281,6 +293,153 @@ reactable(
 
 ```
 
+Column {data-width=650}
+-----------------------------------------------------------------------
+### Draft 2
+
+```{r}
+
+#Male.perc = Male/sum(Male, Female)
+table.data.Sex =  clean.data %>% 
+  select(country, Sex) %>% 
+  as_tibble() %>% 
+  rename(Country = country) %>% 
+  group_by(Country) %>%
+  count(Sex) %>% 
+  pivot_wider(names_from = Sex, values_from = n) %>% 
+  rowwise() %>%   
+  mutate(Female.perc = Female/sum(Female, Male)) %>% 
+  select(Country, Female.perc) 
+
+table.data.Native =  clean.data %>% 
+  select(country, Native) %>% 
+  as_tibble() %>% 
+  rename(Country = country) %>% 
+  group_by(Country) %>%
+  count(Native) %>% 
+  pivot_wider(names_from = Native, values_from = n) %>% 
+  dplyr::mutate(immigrant = replace_na(immigrant, 0)) %>%
+  rowwise() %>%   
+  mutate(native.perc = native/sum(native, immigrant)) %>% 
+  select(Country, native.perc) 
+
+table.data.Age =  clean.data %>% 
+  select(country, Age) %>% 
+  as_tibble() %>% 
+  rename(Country = country) %>% 
+  group_by(Country) %>%
+  mutate(Age.mean = round(mean(Age))) %>% 
+  select(Country, Age.mean) %>% 
+  unique() 
+  
+ 
+d1 = left_join(table.data.Sex, table.data.Native, "Country")   
+table.data = left_join(d1, table.data.Age, "Country") #Final table for descriptives
+
+# Render a bar chart with a label on the left
+bar_chart <- function(label, width = "100%", height = "14px", fill = "#00bfc4", background = NULL) {
+    bar <- div(style = list(background = fill, width = width, height = height))
+    chart <- div(style = list(flexGrow = 1, marginLeft = "6px", background = background), bar)
+   div(style = list(display = "flex", alignItems = "center"), label, chart)
+}
+
+
+ # Col 1 codes
+ # headerStyle = list(fontWeight = 700), 
+ # cell = function(value, index) {
+ #        div(
+ #          class = "Country",
+ #          img(class = "Country", alt = value, src = sprintf("images/%s.png"), value), width="42", height="42", style="vertical-align:bottom")
+ #      }
+
+
+ # #Col3
+ #    Male.perc = colDef(
+ #      name = "Male",
+ #      defaultSortOrder = "desc",
+ #       # Render the bar charts using a custom cell render function
+ #      cell = function(value) {
+ #        # Format as percentages with 1 decimal place
+ #        value <- paste0(format(round(value * 100, 2), nsmall = 2), "%")
+ #        bar_chart(value, width = value, fill = "#2c7fb8", background = "#e1e1e1")
+ #      },
+ #      # And left-align the columns
+ #      align = "left"
+ #    ),
+
+reactable(
+  table.data,
+  defaultSorted = "Country",
+  columns = list(
+
+    #Col1
+    Country = colDef(
+      name = "Country",
+      format = colFormat(prefix = "#"),
+      defaultSortOrder = "asc",
+      minWidth = 200,
+      headerStyle = list(fontWeight = 700)
+      
+       
+   ),
+    
+    
+    #Col2
+    Female.perc = colDef(
+      name = "Female",
+      defaultSortOrder = "desc",
+      # Render the bar charts using a custom cell render function
+      cell = function(value) {
+        # Format as percentages with 1 decimal place
+        value <- paste0(format(round(value * 100, 2), nsmall = 2), "%")
+        bar_chart(value, width = value, fill = "#7fcdbb", background = "#e1e1e1")
+      },
+      # And left-align the columns
+      align = "left",
+       format = colFormat(digits = 1)
+    ),
+   
+  
+  #Col4
+  Age.mean = colDef(
+      name = "Mean Age",
+      defaultSortOrder = "desc",
+       # Render the bar charts using a custom cell render function
+      cell = function(value) {
+        # Format as percentages with 1 decimal place
+        value <- format(round(value, 2), nsmall = 2)
+        bar_chart(value, width = value, fill = "#2c7fb8", background = "#e1e1e1")
+      },
+      # And left-align the columns
+      align = "left"
+    ),
+  
+  #Col5
+  native.perc = colDef(
+      name = "Native",
+      defaultSortOrder = "desc",
+       # Render the bar charts using a custom cell render function
+      cell = function(value) {
+        # Format as percentages with 1 decimal place
+        value <- paste0(format(round(value * 100, 2), nsmall = 2), "%")
+        bar_chart(value, width = value, fill = "#2c7fb8", background = "#e1e1e1")
+      },
+      # And left-align the columns
+      align = "left"
+    )
+  
+  ),
+
+  theme = reactableTheme(
+    borderColor = "#ece2f0",
+    stripedColor = "#f6f8fa",
+    highlightColor = "#f0f5f9",
+    cellPadding = "8px 12px",
+    style = list(fontFamily = "sans-serif"),
+    searchInputStyle = list(width = "10%"))
+)
+
+```
 
 World Map
 =========================

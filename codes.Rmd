@@ -313,7 +313,7 @@ pal <- colorNumeric(
 map %>%
   addPolygons(stroke = FALSE, smoothFactor = 0.2, fillOpacity = 1,
     color = ~pal(gdp_md_est))
-?addPolygons
+
 df1 %>% 
  kbl() %>%
  kable_styling(fixed_thead = T)
