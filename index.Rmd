@@ -4,6 +4,8 @@ output:
   flexdashboard::flex_dashboard:
     orientation: columns
     vertical_layout: fill
+editor_options: 
+  chunk_output_type: console
 ---
 ```{r setup, include=FALSE}
 library(flexdashboard)
@@ -27,19 +29,19 @@ library(sf)
 
 
 ```{r data_cleaning,include=FALSE, echo=TRUE, eval=TRUE}
-#use this code when forking for importing data
-#--------
-# dl = drive_download(
-#   "World_Values_Survey_Wave_7_Inverted_R_v1_5.rdata")
-# 
-# raw.data = import("World_Values_Survey_Wave_7_Inverted_R_v1_5.rdata", setclass = "tb_df") %>% 
-#   characterize() %>% 
-#   clean_names()
-#--------
+# use this code when forking for importing data
+# --------
+#  dl = drive_download(
+#    "World_Values_Survey_Wave_7_Inverted_R_v1_5.rdata")
+ 
+#  raw.data = import("World_Values_Survey_Wave_7_Inverted_R_v1_5.rdata", setclass = # "tb_df") %>% 
+#    characterize() %>% 
+#    clean_names()
+# --------
 
-raw.data = import(here("data", "World_Values_Survey_Wave_7_Inverted_R_v1_5.rdata"), setclass = "tb_df") %>% 
-  characterize() %>% 
-  clean_names()
+ raw.data = import(here("data", "World_Values_Survey_Wave_7_Inverted_R_v1_5.rdata"), setclass = "tb_df") %>% 
+   characterize() %>% 
+   clean_names()
 
 #renaming, recoding levels in the data for required variables
 clean.data = raw.data %>% 
@@ -135,7 +137,7 @@ clean.data = raw.data %>%
 `90400000` = "Sikhism",
 `90500000` = "Spiritism",
 `90800000` = "Neo-paganism",
-`100000020`= "Noneligious",
+`100000020`= "Nonreligious",
 `100000030`= "Agnostic",
 `100000040`= "Atheist"), 
 country = recode(b_country_alpha,
@@ -151,7 +153,7 @@ country = recode(b_country_alpha,
               "CYP" = "Cyprus", 
               "ECU" = "Ecuador", 
               "EGY" = "Egypt", 
-              "ETH" = "Ethipoia",
+              "ETH" = "Ethiopia", 
               "DEU" = "Germany",
               "GRC" = "Greece", 
               "GTM" = "Guatemala", 
@@ -169,7 +171,7 @@ country = recode(b_country_alpha,
               "MEX" = "Mexico", 
               "MMR" = "Myanmar", 
               "NZL" = "New Zealand", 
-              "NIC" = "Nicargua", 
+              "NIC" = "Nicaragua", 
               "NGA" = "Nigeria", 
               "PAK" = "Pakistan", 
               "PER" = "Peru", 
@@ -188,6 +190,10 @@ country = recode(b_country_alpha,
               "USA" = "United States", 
               "VNM" = "Vietnam",
               "ZWE" = "Zimbabwe")) 
+
+# I fixed a few spelling typos, it is possible there are more 
+
+# Anisha - Manually renaming all of these variables is a lot of work! Is it possible the data source has a file describing these conversions that you could use to make things easier? (Maybe not, I am having a similar issue with my data.)
 ```
 
 
@@ -365,7 +371,8 @@ cd %>%
   filter(country_ref == "United States") %>% 
   mutate(highlight = ifelse(country_foc == 'Chile', T, F)) %>%
   select(country_foc, coh_d, highlight) %>% 
-  ggplot(aes(x = fct_reorder(country_foc, abs(coh_d)), y = coh_d, fill = highlight)) +
+  # ANISHA - I changed the reorder without abs(), but this is just a personal preference. If you want to highlight the difference between positive/negative, maybe consider recoloring the bars if they are positive
+  ggplot(aes(x = fct_reorder(country_foc, -coh_d), y = coh_d, fill = highlight)) +
         geom_bar(stat = "identity", aes(fill = highlight), alpha = .8)+ 
   scale_fill_manual(values = c("cornflowerblue", rep("coral1", 46)))+
   theme_minimal(base_size = 8)+
