@@ -291,6 +291,8 @@ reactable(
   )
 )
 
+# Great start here! I like the use of the filter function. Some smaller wonderings: 1) if you have female as a metric, the male variable seems like it is coded as simply the inverse. Can you just keep female and omit male? I would consider deleting the male.perc code; 2) I am curious if the # in front of the country name is purposeful; I would remove the prefix unless you specifically state its purpose in the context of this graphic; 3) How are the countries selected for these stats? I am curious about the background of this data, and you could place that information in a sidebar in this dashboard.
+
 ```
 
 Column {data-width=650}
@@ -501,6 +503,8 @@ leaflet(d) %>%
   setView( lat = 25, lng = 50 , zoom = 1) %>% 
   addPolygons(fillColor = ~pal(perc.imp), stroke = FALSE) %>% 
   addLegend(pal = pal, values = ~perc.imp)
+
+# I like that you were able to plot this data both geographically and to color; the color range works well on the map you have here. Here also, the perc.imp legend label and title would help me understand what this map is trying to communicate
 ```
 
 Economic Values
@@ -533,4 +537,6 @@ cd %>%
              y = "Cohen's d",
              title = "Distance from USA")+
   guides(fill=FALSE)
+
+## Your pivot functions were used well here to hone in on the dependent variable for each of these countries in your data set. However, even here like in your second plot, it is difficult to interpret what this graph is trying to communicate (which I am sure will be remedied on your next draft). My stats here is shaky, but should you take the absolute value of the Cohen's d values for the sake of consistency?
 ```
