@@ -7,14 +7,12 @@ output:
 ---
 ```{r libraries, include=FALSE}
 library(flexdashboard)
-library(tidyverse) #data wrangling
-library(dplyr)
 library(rio) #data import
 library(here) #call data
 library(janitor) #clean data col names
 library(stringr) #
 library(forcats) #
-library(ggplot2) #plotting data
+library(ggplot2) #plotting data <- also tidyverse and dplyr (data wrangling)
 library(esvis) #effect size
 library(kableExtra) #print pretty tables
 here() #look at the path
@@ -24,7 +22,8 @@ library(leaflet)
 library(rgdal)
 library(sf)
 
-
+#J: I like your comments for the packages, that's super helpful, especially as some of these are unfamiliar to me. I'm looking forward to seeing how they work!
+# Also quick note; ggplot2 calls tidyverse and dplyr within it so you don't need to call all 3
 ```
 
 
@@ -42,6 +41,9 @@ library(sf)
 raw.data = import(here("data", "World_Values_Survey_Wave_7_Inverted_R_v1_5.rdata"), setclass = "tb_df") %>% 
   characterize() %>% 
   clean_names()
+
+#J: I'm unable to find this file in the forked project--there was no "data" folder so you might
+# double-check to make sure the data folder is in the right place to make the project reproducible.
 
 #names(raw.data)
 #q262 - age 
@@ -439,6 +441,11 @@ reactable(
     searchInputStyle = list(width = "10%"))
 )
 
+
+#J Comments: 
+# - I'm excited to see your final version of this! I like the interactivity of your table and I wasn't able to see if the missing column 4 and 5 are because I wasn't able to load the data and run the document, so just pointing out to double check in case that's not the reason.
+# - The bar charts within the table is a really nice touch!
+# - I also really appreciate being able to sort ascending/descending order based on country or using the bar chart information with gender.
 ```
 
 World Map
@@ -496,11 +503,20 @@ pal <- colorNumeric(palette = "viridis",
                     domain = na.omit(d$perc.imp),
                     na.color = "transparent")
 
+# J: I've been too intimidated to create my own color palettes--this is really nice to see to learn from and how to modify existing palettes!
+
 leaflet(d) %>% 
   addTiles() %>% 
   setView( lat = 25, lng = 50 , zoom = 1) %>% 
   addPolygons(fillColor = ~pal(perc.imp), stroke = FALSE) %>% 
   addLegend(pal = pal, values = ~perc.imp)
+
+# J Comments:
+# - SUCH A BEAUTIFUL MAP.
+# - I really like the zoom in/out ability and the labeling in different languages. It's a cool touch!
+
+# Area for improvement:
+# - The main thing is that I'm not sure what I'm meant to be seeing in the map. It's colored by a variable but could use a title/subtitle or description to provide more context and to relabel the legend title so it's not a variable name.
 ```
 
 Economic Values
@@ -533,4 +549,11 @@ cd %>%
              y = "Cohen's d",
              title = "Distance from USA")+
   guides(fill=FALSE)
+
+#J Comments:
+# - This was an interesting display. It looks really nice and I'm eager to hear your presentation to put the information in context. 
+# - I really like how you ordered the information. The descending order really highlights the countries with a vastly different trend; Vietnam, Romania, Pakistan, and Ethiopia.
+
+# Area for improvement:
+# - One thing you could do for the reader is to provide a more informative title or description. As an outsider, I'm drawn in and I want to know what the significance of plotting distance from U.S. is.
 ```
