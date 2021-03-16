@@ -1,0 +1,70 @@
+@import url('https://fonts.googleapis.com/css?family=Karla:400,700|Fira+Mono&display=fallback');
+@import url('https://fonts.googleapis.com/css2?family=Ovo&display=swap');
+
+.main-header .logo {
+  font-family: "Georgia", Times, "Times New Roman", serif;
+  font-weight: bold;
+  font-size: 24px;
+}
+
+body{
+  background-color: #E9E1D4
+}
+
+.navbar-inverse {
+  background-color: #ABB4C4;
+  border-color: #ffffff;
+  height: 30px;
+
+}
+
+.section.sidebar {
+  top: 51px;
+  background-color: #858b97;
+  color: #ffffff
+}
+
+
+.container-fluid {
+	background-color: #4f5a89;
+	font-family: 'Stick', sans-serif;
+	border-bottom: 2px solid #D1D8DF;
+}
+
+.navbar-logo img {
+  margin-left: -15px;
+}
+
+/* REACTABLE Styles for the table container, title, and subtitle */
+.country-data {
+  /* Center the table */
+  margin: 0 auto;
+  /* Reduce the table width */
+  width: 1100px;
+  font-family: Karla, "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+.country-header {
+  margin: 9px 0;
+  font-size: 16px;
+}
+
+.country-title {
+  font-size: 22px;
+  font-weight: 600;
+}
+.tag {
+  display: inline-block;
+  padding: 2px 12px;
+  border-radius: 15px;
+  font-weight: 600;
+  font-size: 12px;
+}
+.country {
+  display: flex;
+  align-items: baseline;
+}
+.flag {
+  margin-right: 8px;
+  height: 26px;
+  border: 1px solid #f0f0f0;
+}

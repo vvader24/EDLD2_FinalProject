@@ -2,10 +2,10 @@
 title: "World Values Survey data"
 output: 
   flexdashboard::flex_dashboard:
-    orientation: rows
+    css: style.css
+    orientation: columns
     social: menu
     source_code: embed
-    vertical_layout: scroll
     theme: spacelab
 ---
 
@@ -224,50 +224,9 @@ Sidebar {.sidebar}
 
 
 
-Row {.tabset}
+Column {.tabset}
 -----------------------------------------------------------------------
 ### Draft 3
-```{r}
-# Add Google Fonts to the page
-tags$link(href = "https://fonts.googleapis.com/css?family=Karla:400,700|Fira+Mono&display=fallback",
-          rel = "stylesheet")
-```
-
-```{css}
-/* Styles for the table container, title, and subtitle */
-.country-data {
-  /* Center the table */
-  margin: 0 auto;
-  /* Reduce the table width */
-  width: 575px;
-  font-family: Karla, "Helvetica Neue", Helvetica, Arial, sans-serif;
-}
-.country-header {
-  margin: 8px 0;
-  font-size: 16px;
-}
-
-.country-title {
-  font-size: 20px;
-  font-weight: 600;
-}
-.tag {
-  display: inline-block;
-  padding: 2px 12px;
-  border-radius: 15px;
-  font-weight: 600;
-  font-size: 12px;
-}
-.country {
-  display: flex;
-  align-items: baseline;
-}
-.flag {
-  margin-right: 8px;
-  height: 21px;
-  border: 1px solid #f0f0f0;
-}
-```
 
 
 ```{r}
@@ -320,7 +279,7 @@ bar_chart <- function(label, width = "100%", height = "14px", fill = "#00bfc4", 
 
 tbl = reactable(
   table.data,
-  defaultPageSize = 6, ## change pagination size from 10 to 20
+  defaultPageSize = 10, ## change pagination size from 10 to 20
   defaultSorted = "Country",
   columns = list(
 
@@ -409,8 +368,6 @@ div(class = "country-data",
 ```
 
 
-Row {.tabset}
------------------------------------------------------------------------
 ### Draft 1
 
 ```{r}
@@ -483,7 +440,7 @@ reactable(
     borderColor = "#ece2f0",
     stripedColor = "#f6f8fa",
     highlightColor = "#f0f5f9",
-    cellPadding = "8px 12px",
+    cellPadding = "8px 13px",
     style = list(
       fontFamily = "sans-serif"
     ),
@@ -495,18 +452,6 @@ reactable(
 
 
 ### Draft 2
-
-```{css}
-.country {
-  display: flex;
-  align-items: baseline;
-}
-.flag {
-  margin-right: 8px;
-  height: 21px;
-  border: 1px solid #f0f0f0;
-}
-```
 
 ```{r}
 
@@ -680,8 +625,147 @@ Percentages for every country were computed by considering the number of partici
 
 The icons indicate the defense spending budget of the countries and their ranks.
 
-Row{.tabset}
+Column {.tabset}
 -----------------------------------------------------------------------
+### Draft 3
+
+```{r}
+
+country_coord = clean.data %>% 
+  select(country, o1_longitude, o2_latitude) %>%
+  group_by(country) %>% 
+  summarise(mean_long = mean(o1_longitude),
+         mean_lat = mean(o2_latitude))
+
+
+df1 = clean.data %>% 
+  select(country, q152) %>%
+  group_by(country, q152) %>% 
+  count() %>% 
+  pivot_wider(names_from = "q152", values_from = n) %>% 
+  mutate(`4` = replace_na(`4`, 0)) %>% #replace the pesky NA with 0
+  mutate(total.n = sum(`1`, `2`, `3`, `4`)) %>% 
+  pivot_longer(cols = c(`1`, `2`, `3`, `4`), names_to = "q152", values_to = "importance") %>% 
+  mutate("perc.imp" = (importance/total.n)*100) %>% 
+  filter(q152 == "2") %>% #defense is important
+  arrange(desc(perc.imp)) %>% 
+  data.frame()%>%
+  as_tibble() %>% 
+  #Recoding to match those in the GEO file for adding polygons in the map
+  mutate(country = recode(country,
+                          "Hong Kong SAR" = "Hong Kong",
+                          "Iran" = "Iran (Islamic Republic of)",
+                          "Macau.SAR" = "Macau",
+                          "Myanmar" = "Burma",
+                          "Nicargua" = "Nicaragua",
+                          "Taiwan ROC" = "Taiwan",
+                          "Vietnam" = "Viet Nam")) %>% 
+  arrange(desc(perc.imp))
+
+df1.map = left_join(country_coord, df1, "country")
+
+# Code to create and load world polygon shapefiles
+#dir.create(here("shapefile"))
+#download.file("http://thematicmapping.org/downloads/TM_WORLD_BORDERS_SIMPL-0.3.zip" , 
+              # destfile = here("shapefile", "world_shape_file.zip"))
+
+# unzip(here("shapefile", "world_shape_file.zip"),
+#       exdir = here("shapefiles"))
+
+world_spdf <- readOGR( 
+  dsn = here("shapefiles"), 
+  layer = "TM_WORLD_BORDERS_SIMPL-0.3",
+  verbose = FALSE
+) %>% 
+  st_as_sf()
+
+d <- left_join(world_spdf, df1, by = c("NAME" = "country"))
+
+# create palette
+pal <- colorNumeric(palette = colorRamp(c("#DCDCD4", "#3F7299"), interpolate="spline"),
+                    domain = na.omit(d$perc.imp),
+                    na.color = "transparent")
+
+#Icon URL for defense
+IconURL= 'https://icons.iconarchive.com/icons/icons8/windows-8/48/Military-Rifle-icon.png'
+
+#title
+tag.map.title <- tags$style(HTML("
+  .leaflet-control.map-title { 
+    transform: translate(-30%,50%);
+    position: fixed !important;
+    left: 50%;
+    text-align: center;
+    padding-left: 20px; 
+    padding-right: 20px; 
+    background: #FFF;
+    font-weight: bold;
+    font-size: 20px;
+    font: 20px Georgia, monospace;
+  }
+"))
+
+title <- tags$div(
+  tag.map.title, HTML("Aim of the Country for the next 10 years - Strong Defense forces ")
+)
+
+leaflet(d) %>% 
+  addTiles() %>% 
+  setView(lat = 25, lng = 50 , zoom = 2.2) %>% 
+  addPolygons(fillColor = ~pal(perc.imp), stroke = FALSE,  smoothFactor = 0.2, fillOpacity = 1) %>% 
+  addLegend("bottomright", pal = pal, values = ~perc.imp, title = "% of Defense Imp.",  labFormat = labelFormat(suffix = "%"),  opacity = 1) %>% 
+   addControl(title, position = "topleft", className="map-title") %>% 
+  #USA
+  addMarkers(
+    lng = -100.4458825, lat = 39.7837304,
+    icon = list(
+      iconUrl= IconURL, 
+      iconSize= c(12,12)),
+    labelOptions = labelOptions(noHide = T),
+    popup="<b>#1. USA $740Bn.</b><br><a href='https://www.globalfirepower.com/defense-spending-budget.php'>ref</a>") %>%
+  #China
+  addMarkers(
+    lng = 104.195397, lat = 35.86166,
+    icon = list(
+      iconUrl= IconURL, 
+      iconSize= c(12,12)),
+    labelOptions = labelOptions(noHide = T),
+    popup="<b>#2. China $178.2Bn.</b><br><a href='https://www.globalfirepower.com/defense-spending-budget.php'>ref</a>") %>%
+  #Russia
+  addMarkers(
+    lng = 	105.318756, lat = 61.52401,
+    icon = list(
+      iconUrl= IconURL, 
+      iconSize= c(12,12)),
+    labelOptions = labelOptions(noHide = T),
+    popup="<b>#11. Russia $42.12Bn.</b><br><a href='https://www.globalfirepower.com/defense-spending-budget.php'L>ref</a>") %>% 
+   #Iran
+  addMarkers(
+    lng = 	53.688046, lat = 32.427908,
+    icon = list(
+      iconUrl= IconURL, 
+      iconSize= c(12,12)),
+    labelOptions = labelOptions(noHide = T),
+    popup="<b>#20. Iran $14.1Bn.</b><br><a href='https://www.globalfirepower.com/defense-spending-budget.php'>ref</a>") %>% 
+  #Pakistan
+  addMarkers(
+    lng = 	69.345116, lat = 30.375321,
+    icon = list(
+      iconUrl= IconURL, 
+      iconSize= c(12,12)),
+    labelOptions = labelOptions(noHide = T),
+    popup="<b>#24. Pakistan $12.27Bn.</b><br><a href='https://www.globalfirepower.com/defense-spending-budget.php'>ref</a>") %>% 
+    #Iraq
+  addMarkers(
+    lng = 	43.679291, lat = 	33.223191,
+    icon = list(
+      iconUrl= IconURL, 
+      iconSize= c(12,12)),
+    labelOptions = labelOptions(noHide = T),
+    popup="<b>#39. Iraq $6Bn.</b><br><a href='https://www.globalfirepower.com/defense-spending-budget.php'L>ref</a>")
+
+```
+
 ### Draft 2
 
 ```{r}
@@ -737,7 +821,7 @@ world_spdf <- readOGR(
 d <- left_join(world_spdf, df1, by = c("NAME" = "country"))
 
 # create palette
-pal <- colorNumeric(palette = colorRamp(c("#002bb8", "#99ffd5"), interpolate="spline"),
+pal <- colorNumeric(palette = colorRamp(c("#DCDCD4", "#3F7299"), interpolate="spline"),
                     domain = na.omit(d$perc.imp),
                     na.color = "transparent")
 
@@ -767,7 +851,7 @@ title <- tags$div(
 
 leaflet(d) %>% 
   addTiles() %>% 
-  setView(lat = 25, lng = 50 , zoom = 1.3) %>% 
+  setView(lat = 25, lng = 50 , zoom = 2.2) %>% 
   addPolygons(fillColor = ~pal(perc.imp), stroke = FALSE,  smoothFactor = 0.2, fillOpacity = 1) %>% 
   addLegend("bottomright", pal = pal, values = ~perc.imp, title = "% of Defense Imp.",  labFormat = labelFormat(suffix = "%"),  opacity = 1) %>% 
    addControl(title, position = "topleft", className="map-title") %>% 
@@ -822,8 +906,6 @@ leaflet(d) %>%
 
 ```
 
-Row {.tabset}
------------------------------------------------------------------------
 ### Draft 1
 
 ```{r}
@@ -900,8 +982,140 @@ A postmaterial capitalism index was computed. Higher the score higher the levels
 
 
 
-Row {.tabset}
+Column {.tabset}
 -----------------------------------------------------------------------
+
+### Draft 3
+
+
+```{r}
+capitalism.d = clean.data %>%
+  filter(q111 %in% c("1", "2")) %>% 
+  rowwise() %>% 
+  #Score on Capitalism - Higher score, higher C
+  mutate(capitalism = sum(q106, q107r, q108, q109r, q111)) %>%
+  mutate(capitalism = as.integer(capitalism)) %>%
+  select(country, capitalism, rel.denom, q262) 
+
+cd = coh_d(capitalism.d, capitalism~country) #compute effect sizes for all country pairs
+
+
+cd1 = cd %>% 
+  filter(country_ref == "United States") %>% 
+  # mutate(highlight = ifelse(country_foc == 'Chile', T, F)) %>%
+  select(country_foc, coh_d, coh_se)
+
+new.df = tribble(
+~Culture,      ~country_foc,       ~GCP,    ~Rank,
+"no data",      "Andorra",        39128,    159,
+"collective",   "Argentina",      14508,    21,
+"collective",   "Bangladesh",     1564,     43,
+"collective",   "Bolivia",        3351,     94,
+"collective",   "China",          8612,     2,
+"collective",   "Colombia",       6429,     38,
+"no data",      "Cyprus",         18695,    109,
+"collective",   "Ecuador",        6124,     62,
+"collective",   "Ethiopia",       757,      66,
+"collective",   "Greece",         19214,    51,
+"collective",   "Hong Kong SAR",  46733,	  33,
+"collective",   "Indonesia",      3837,     16,
+"collective",   "Iran",           5628,     26,
+"collective",   "Iraq",           5114,     52,
+"collective",   "Jordan",         4095,     88,
+"collective",   "Kazakhstan",     9009,     55,
+"no data",      "Kyrgyzstan",     1222,     144,
+"collective",   "Lebanon",        7857,     80,
+"no data",      "Macau.SAR",      80890,    82,
+"collective",   "Malaysia",       10118,    37,
+"collective",   "Mexico",         9224,     15,  
+"no data",      "Myanmar",        1256,	    71,
+"no data",      "Nicargua",       2164,     12,
+"collective",   "Nigeria",        1969,     30,
+"collective",   "Pakistan",       1467,     40,
+"collective",   "Philippines",    2982,     39,
+"collective",   "Romania",        10781,    48,
+"collective",   "Russia",         10846,    11,
+"collective",   "Taiwan ROC",     25062,    22, 
+"no data",      "Tajikistan",     805,      145,
+"collective",   "Thailand",       6579,     25, 
+"collective",   "Tunisia",        3494,     89,
+"collective",   "Vietnam",        2366,     45,
+"no data",      "Zimbabwe",       1548,     110
+) 
+
+df = new.df %>% 
+      mutate(Ranking = ifelse(Rank %in% 1:20, "Top 20","Higher than 20"))
+
+final.df = left_join(cd1, df, "country_foc")
+
+# USA
+vertical.lines = c(-0.50,-0.25, 0,0.25,0.50)
+
+#Color palette for bars
+accent_OkabeIto <- palette_OkabeIto[c(3, 5, 7, 1)]
+accent_OkabeIto[1:4] <- desaturate(lighten(accent_OkabeIto[1:4], .4), .8)
+
+#Color palette for country names
+label_color <- final.df %>% 
+  arrange(abs(coh_d)) %>% 
+   mutate(new.var = ifelse(country_foc == "China"| country_foc == "Russia", "#6d98c0", "gray30")) %>% 
+   select(new.var) %>% 
+  unlist()
+
+#Font palette for country names
+label_face <- final.df %>% 
+  arrange(abs(coh_d)) %>% 
+   mutate(new.var = ifelse(country_foc == "China" | country_foc == "Russia",  "bold", "plain")) %>% 
+   select(new.var) %>% 
+  unlist()
+
+
+#Annotate
+annot = data.frame(
+  text = c("Ref. country greater", "Non-ref. country greater"),
+  x = c(3, 3),
+  y = c(-.65,.17)
+)
+
+#Plot
+plot = final.df%>% 
+  ggplot(aes(x = fct_reorder(country_foc, abs(coh_d)), y = coh_d)) +
+        geom_bar(stat = "identity", aes(fill = Ranking), alpha = .8)+ 
+        #China in blue
+        geom_bar(stat = "identity",data = filter(final.df, country_foc == "China"), fill = "#6d98c0")+
+        #Russia in blue
+        geom_bar(stat = "identity",data = filter(final.df, country_foc == "Russia"), fill = "#6d98c0")+
+  #Add error bars
+    geom_errorbar(aes(x= fct_reorder(country_foc, abs(coh_d)), ymin=coh_d-coh_se, ymax=coh_d+coh_se), width=0.15, color="#5c5c5c", alpha=0.5, size=.15)+
+    scale_fill_manual(values = accent_OkabeIto)+
+  guides(fill=guide_legend(title="GDPPC Gross Ranking"))+
+  theme_minimal(base_size = 8)+
+   scale_y_continuous(breaks = c(-0.50,-0.25, 0,0.25,0.50),
+                     labels = c("-0.50","-0.25", "0","0.25","0.50"))+
+        coord_flip() +  
+        labs(x = "Countries",
+             y = "Cohen's d",
+             title = "Captalism Values - Effect size Plot",
+             subtitle = "Reference Country - United States",
+             caption = "Data Source: World Values Survey")+
+ geom_text(data = annot, aes(x=x, y=y, label = text, fontface=3), color="grey75", hjust=0, size=3, inherit.aes = FALSE)+
+theme(panel.grid.minor = element_blank(),
+      axis.text.y = element_text(color = label_color,
+                                   face = label_face),
+       panel.grid.major.x = element_line(colour = "grey90", linetype = 2, size = 0.5),
+      panel.grid.major.y =  element_line(colour = "grey90", linetype = 1, size = 0.13),
+      text=element_text(size=10,  family="Times"))+
+   ggtitle("Cars") +
+  ggsave(filename = paste0(here("/"), last_plot()$labels$title, ".png"),
+         width = 5, height = 4, dpi = 300)
+
+plot <- image_read(paste0(here("/"), "Cars.png"))
+
+library(magick)
+library(magrittr)
+library(here)
+```
+
 ### Draft 2
 
 ```{r}
@@ -1014,8 +1228,7 @@ theme(panel.grid.minor = element_blank(),
       text=element_text(size=10,  family="Palatino"))
 ```
 
-Row {.tabset}
------------------------------------------------------------------------
+
 ### Draft 1
 
 ```{r}
