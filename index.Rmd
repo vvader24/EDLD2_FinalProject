@@ -21,7 +21,7 @@ library(stringr) #
 library(forcats) #
 library(ggplot2) #plotting data
 library(esvis) #effect size
-here() #look at the path
+#here() #look at the path
 library(reactable)
 library(htmltools)
 library(leaflet)
@@ -34,6 +34,10 @@ library(colorspace)
 library(colorblindr)
 library(magick)
 library(beepr)
+library(ggimage)
+library(png)
+library(grid)
+library(gridExtra)
 #install.packages("scales")
 ```
 
@@ -369,89 +373,6 @@ div(class = "country-data",
 ```
 
 
-### Draft 1
-
-```{r}
-table.data =  clean.data %>% 
-  select(country, q260) %>% 
-  mutate(q260 = recode(q260,
-         `1` ="Male",
-         `2` = "Female")) %>% 
-  as_tibble() %>% 
-  rename(Sex = q260,
-         Country = country) %>% 
-  group_by(Country) %>%
-  count(Sex) %>% 
-  pivot_wider(names_from = Sex, values_from = n) %>% 
-  rowwise() %>%   
-  mutate(Female.perc = Female/sum(Female, Male),
-         Male.perc = Male/sum(Male, Female)) %>% 
-  select(Country, Female.perc, Male.perc) 
-
-# Render a bar chart with a label on the left
-bar_chart <- function(label, width = "100%", height = "14px", fill = "#00bfc4", background = NULL) {
-    bar <- div(style = list(background = fill, width = width, height = height))
-    chart <- div(style = list(flexGrow = 1, marginLeft = "6px", background = background), bar)
-   div(style = list(display = "flex", alignItems = "center"), label, chart)
-}
-
-
-reactable(
-  table.data,
-  defaultSorted = "Country",
-  columns = list(
-    #Col1
-    Country = colDef(
-      name = "Country",
-      format = colFormat(prefix = "#"),
-      defaultSortOrder = "asc",
-      minWidth = 200
-      
-    ),
-    #Col2
-    Female.perc = colDef(
-      name = "Female",
-      defaultSortOrder = "desc",
-      # Render the bar charts using a custom cell render function
-      cell = function(value) {
-        # Format as percentages with 1 decimal place
-        value <- paste0(format(round(value * 100, 2), nsmall = 2), "%")
-        bar_chart(value, width = value, fill = "#7fcdbb", background = "#e1e1e1")
-      },
-      # And left-align the columns
-      align = "left",
-       format = colFormat(digits = 1)
-    ),
-    #Col3
-    Male.perc = colDef(
-      name = "Male",
-      defaultSortOrder = "desc",
-       # Render the bar charts using a custom cell render function
-      cell = function(value) {
-        # Format as percentages with 1 decimal place
-        value <- paste0(format(round(value * 100, 2), nsmall = 2), "%")
-        bar_chart(value, width = value, fill = "#2c7fb8", background = "#e1e1e1")
-      },
-      # And left-align the columns
-      align = "left"
-    )
-  ),
-
-  theme = reactableTheme(
-    borderColor = "#ece2f0",
-    stripedColor = "#f6f8fa",
-    highlightColor = "#f0f5f9",
-    cellPadding = "8px 13px",
-    style = list(
-      fontFamily = "sans-serif"
-    ),
-    searchInputStyle = list(width = "10%")
-  )
-)
-
-```
-
-
 ### Draft 2
 
 ```{r}
@@ -605,6 +526,87 @@ reactable(
 
 ```
 
+### Draft 1
+
+```{r}
+table.data =  clean.data %>% 
+  select(country, q260) %>% 
+  mutate(q260 = recode(q260,
+         `1` ="Male",
+         `2` = "Female")) %>% 
+  as_tibble() %>% 
+  rename(Sex = q260,
+         Country = country) %>% 
+  group_by(Country) %>%
+  count(Sex) %>% 
+  pivot_wider(names_from = Sex, values_from = n) %>% 
+  rowwise() %>%   
+  mutate(Female.perc = Female/sum(Female, Male),
+         Male.perc = Male/sum(Male, Female)) %>% 
+  select(Country, Female.perc, Male.perc) 
+
+# Render a bar chart with a label on the left
+bar_chart <- function(label, width = "100%", height = "14px", fill = "#00bfc4", background = NULL) {
+    bar <- div(style = list(background = fill, width = width, height = height))
+    chart <- div(style = list(flexGrow = 1, marginLeft = "6px", background = background), bar)
+   div(style = list(display = "flex", alignItems = "center"), label, chart)
+}
+
+
+reactable(
+  table.data,
+  defaultSorted = "Country",
+  columns = list(
+    #Col1
+    Country = colDef(
+      name = "Country",
+      format = colFormat(prefix = "#"),
+      defaultSortOrder = "asc",
+      minWidth = 200
+      
+    ),
+    #Col2
+    Female.perc = colDef(
+      name = "Female",
+      defaultSortOrder = "desc",
+      # Render the bar charts using a custom cell render function
+      cell = function(value) {
+        # Format as percentages with 1 decimal place
+        value <- paste0(format(round(value * 100, 2), nsmall = 2), "%")
+        bar_chart(value, width = value, fill = "#7fcdbb", background = "#e1e1e1")
+      },
+      # And left-align the columns
+      align = "left",
+       format = colFormat(digits = 1)
+    ),
+    #Col3
+    Male.perc = colDef(
+      name = "Male",
+      defaultSortOrder = "desc",
+       # Render the bar charts using a custom cell render function
+      cell = function(value) {
+        # Format as percentages with 1 decimal place
+        value <- paste0(format(round(value * 100, 2), nsmall = 2), "%")
+        bar_chart(value, width = value, fill = "#2c7fb8", background = "#e1e1e1")
+      },
+      # And left-align the columns
+      align = "left"
+    )
+  ),
+
+  theme = reactableTheme(
+    borderColor = "#ece2f0",
+    stripedColor = "#f6f8fa",
+    highlightColor = "#f0f5f9",
+    cellPadding = "8px 13px",
+    style = list(
+      fontFamily = "sans-serif"
+    ),
+    searchInputStyle = list(width = "10%")
+  )
+)
+
+```
 
 
 World Map
@@ -978,9 +980,11 @@ Economic Values
 Sidebar {.sidebar}
 ------------
 
-This figure indicates the effect sizes of the difference between Capitalism values in the USA in comparison to the countries in the dataset. 
-A postmaterial capitalism index was computed. Higher the score higher the levels of Capitalism. 
+This figure indicates the effect sizes of the difference between Capitalism values in USA and other countries in the dataset. A postmaterial capitalism index was computed. Higher the score higher the levels of Capitalism. 
 
+The Gross Domestic per Capita (GDPPC) Ranking [data](https://www.worldometers.info/gdp/gdp-by-country/) for 2017 was obtained to highlight those countries which are in the Top 20 ranking and those having a rank lower than 20. 
+
+Thouse countries extending on the left indicate the difference between the mean values of US and the respective country, wherein the mean value of US (reference group) is greater than the non-reference group country, as indicated on the Y axis. Those countries extending on the right, indicate mean values greater than that of US
 
 
 Column {.tabset}
@@ -1044,8 +1048,9 @@ new.df = tribble(
 "no data",      "Zimbabwe",       1548,     110
 ) 
 
+#data frame for making a character vector according to Ranking
 df = new.df %>% 
-      mutate(Ranking = ifelse(Rank %in% 1:20, "Top 20","Higher than 20"))
+      mutate(Ranking = ifelse(Rank %in% 1:20, "Top 20","Lower than 20"))
 
 final.df = left_join(cd1, df, "country_foc")
 
@@ -1074,51 +1079,77 @@ label_face <- final.df %>%
 #Annotate
 annot = data.frame(
   text = c("Ref. country greater", "Non-ref. country greater"),
-  x = c(3, 3),
-  y = c(-.65,.17)
+  x = c(3.5, 3.5),
+  y = c(-.65,.055)
 )
 
 #Plot
 
-# final.df%>% 
-#   ggplot(aes(x = fct_reorder(country_foc, abs(coh_d)), y = coh_d)) +
-#         geom_bar(stat = "identity", aes(fill = Ranking), alpha = .8)+ 
-#         #China in blue
-#         geom_bar(stat = "identity",data = filter(final.df, country_foc == "China"), fill = "#6d98c0")+
-#         #Russia in blue
-#         geom_bar(stat = "identity",data = filter(final.df, country_foc == "Russia"), fill = "#6d98c0")+
-#   #Add error bars
-#     geom_errorbar(aes(x= fct_reorder(country_foc, abs(coh_d)), ymin=coh_d-coh_se, ymax=coh_d+coh_se), width=0.15, color="#5c5c5c", alpha=0.5, size=.15)+
-#     scale_fill_manual(values = accent_OkabeIto)+
-#   guides(fill=guide_legend(title="GDPPC Gross Ranking"))+
-#   theme_minimal(base_size = 8)+
-#    scale_y_continuous(breaks = c(-0.50,-0.25, 0,0.25,0.50),
-#                      labels = c("-0.50","-0.25", "0","0.25","0.50"))+
-#         coord_flip() +  
-#         labs(x = "Countries",
-#              y = "Cohen's d",
-#              title = "Captalism Values - Effect size Plot",
-#              subtitle = "Reference Country - United States",
-#              caption = "Data Source: World Values Survey")+
-#  geom_text(data = annot, aes(x=x, y=y, label = text, fontface=3), color="grey75", hjust=0, size=3, inherit.aes = FALSE)+
-# theme(panel.grid.minor = element_blank(),
-#       axis.text.y = element_text(color = label_color,
-#                                    face = label_face),
-#        panel.grid.major.x = element_line(colour = "grey90", linetype = 2, size = 0.5),
-#       panel.grid.major.y =  element_line(colour = "grey90", linetype = 1, size = 0.13),
-#       text=element_text(size=10,  family="Times"))
+#Add background picture to the plot
+m <- readPNG("money.png")
+w <- matrix(rgb(m[,,1],m[,,2],m[,,3], m[,,4] * 0.1), nrow=dim(m)[1]) #0.1 is alpha to change the transparency of the image
 
-#ggsave("capitalism.png")
+ final.df%>%
+   ggplot(aes(x = fct_reorder(country_foc, abs(coh_d)), y = coh_d)) +
+  annotation_custom(rasterGrob(w, 
+                               width = unit(1,"npc"),
+                               height = unit(1,"npc")), 
+                    -Inf, Inf, -Inf, Inf) +
+        geom_bar(stat = "identity", aes(fill = Ranking), alpha = .8)+
+        #China in blue
+         geom_bar(stat = "identity",data = filter(final.df, country_foc == "China"), fill = "#6d98c0")+
+         #Russia in blue
+  geom_bar(stat = "identity",data = filter(final.df, country_foc == "Russia"), fill = "#6d98c0")+
+   #Add error bars
+     geom_errorbar(aes(x= fct_reorder(country_foc, abs(coh_d)), ymin=coh_d-coh_se, ymax=coh_d+coh_se), width=0.15, color="#5c5c5c", alpha=0.5, size=.15)+
+     scale_fill_manual(values = accent_OkabeIto)+
+   guides(fill=guide_legend(title="GDPPC Gross Ranking"))+
+   theme_minimal(base_size = 8)+
+    scale_y_continuous(breaks = c(-0.50,-0.25, 0,0.25,0.50),
+                      labels = c("-0.50","-0.25", "0","0.25","0.50"))+
+         coord_flip() +
+         labs(x = "Countries",
+              y = "Cohen's d",
+              title = "Captalism Values - Effect size Plot",
+              subtitle = "Reference Country - United States",
+              caption = "Data Source: World Values Survey")+
+  geom_text(data = annot, aes(x=x, y=y, label = text, fontface=3), color="#817d79", hjust=0, size=3, inherit.aes = FALSE)+
+ theme(panel.grid.minor = element_blank(),
+       axis.text.y = element_text(color = label_color,
+                                    face = label_face),
+        panel.grid.major.x = element_line(colour = "grey90", linetype = 2, size = 0.5),
+       panel.grid.major.y =  element_line(colour = "grey90", linetype = 1, size = 0.13),
+       text=element_text(size=10,  family="Times"))
+
  
-CAPplot <- image_read("capitalism.png")
-wizgif <- image_read("giphy.gif")
+#Codes for gif which do not render in flexdashboard!
+#ggsave("capitalism.png")
 
-frames <- image_composite(CAPplot, wizgif, offset = "+2000+70")
 
-animation <- image_animate(frames, fps = 10)
-image_write(animation, "beachwiz.gif")
+# # Set up a plot area with no plot
+# plot(1:2, type='n', main="", xlab="x", ylab="y")
+# 
+# lim <- par()
+# rasterImage(CAPplot, 
+#             xleft=1, xright=2, 
+#             ybottom=1.3, ytop=1.7)
+# grid()
+#  
+# 
+# 
+# # Print over another graphic
+# plot(plot1)
+# rasterImage(CAPplot , 21, 0, 25, 80)
 
-beep()
+
+#wizgif <- image_read("giphy.gif")
+
+#frames <- image_composite(CAPplot, wizgif, offset = "+2000+70")
+
+#animation <- image_animate(frames, fps = 10)
+#image_write(animation, "beachwiz.gif")
+
+#beep()
 
 ```
 
