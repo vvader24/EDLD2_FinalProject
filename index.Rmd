@@ -32,8 +32,9 @@ library(nflfastR)
 library(gganimate)
 library(colorspace)
 library(colorblindr)
+library(magick)
+library(beepr)
 #install.packages("scales")
-
 ```
 
 
@@ -1078,42 +1079,47 @@ annot = data.frame(
 )
 
 #Plot
-plot = final.df%>% 
-  ggplot(aes(x = fct_reorder(country_foc, abs(coh_d)), y = coh_d)) +
-        geom_bar(stat = "identity", aes(fill = Ranking), alpha = .8)+ 
-        #China in blue
-        geom_bar(stat = "identity",data = filter(final.df, country_foc == "China"), fill = "#6d98c0")+
-        #Russia in blue
-        geom_bar(stat = "identity",data = filter(final.df, country_foc == "Russia"), fill = "#6d98c0")+
-  #Add error bars
-    geom_errorbar(aes(x= fct_reorder(country_foc, abs(coh_d)), ymin=coh_d-coh_se, ymax=coh_d+coh_se), width=0.15, color="#5c5c5c", alpha=0.5, size=.15)+
-    scale_fill_manual(values = accent_OkabeIto)+
-  guides(fill=guide_legend(title="GDPPC Gross Ranking"))+
-  theme_minimal(base_size = 8)+
-   scale_y_continuous(breaks = c(-0.50,-0.25, 0,0.25,0.50),
-                     labels = c("-0.50","-0.25", "0","0.25","0.50"))+
-        coord_flip() +  
-        labs(x = "Countries",
-             y = "Cohen's d",
-             title = "Captalism Values - Effect size Plot",
-             subtitle = "Reference Country - United States",
-             caption = "Data Source: World Values Survey")+
- geom_text(data = annot, aes(x=x, y=y, label = text, fontface=3), color="grey75", hjust=0, size=3, inherit.aes = FALSE)+
-theme(panel.grid.minor = element_blank(),
-      axis.text.y = element_text(color = label_color,
-                                   face = label_face),
-       panel.grid.major.x = element_line(colour = "grey90", linetype = 2, size = 0.5),
-      panel.grid.major.y =  element_line(colour = "grey90", linetype = 1, size = 0.13),
-      text=element_text(size=10,  family="Times"))+
-   ggtitle("Cars") +
-  ggsave(filename = paste0(here("/"), last_plot()$labels$title, ".png"),
-         width = 5, height = 4, dpi = 300)
 
-plot <- image_read(paste0(here("/"), "Cars.png"))
+# final.df%>% 
+#   ggplot(aes(x = fct_reorder(country_foc, abs(coh_d)), y = coh_d)) +
+#         geom_bar(stat = "identity", aes(fill = Ranking), alpha = .8)+ 
+#         #China in blue
+#         geom_bar(stat = "identity",data = filter(final.df, country_foc == "China"), fill = "#6d98c0")+
+#         #Russia in blue
+#         geom_bar(stat = "identity",data = filter(final.df, country_foc == "Russia"), fill = "#6d98c0")+
+#   #Add error bars
+#     geom_errorbar(aes(x= fct_reorder(country_foc, abs(coh_d)), ymin=coh_d-coh_se, ymax=coh_d+coh_se), width=0.15, color="#5c5c5c", alpha=0.5, size=.15)+
+#     scale_fill_manual(values = accent_OkabeIto)+
+#   guides(fill=guide_legend(title="GDPPC Gross Ranking"))+
+#   theme_minimal(base_size = 8)+
+#    scale_y_continuous(breaks = c(-0.50,-0.25, 0,0.25,0.50),
+#                      labels = c("-0.50","-0.25", "0","0.25","0.50"))+
+#         coord_flip() +  
+#         labs(x = "Countries",
+#              y = "Cohen's d",
+#              title = "Captalism Values - Effect size Plot",
+#              subtitle = "Reference Country - United States",
+#              caption = "Data Source: World Values Survey")+
+#  geom_text(data = annot, aes(x=x, y=y, label = text, fontface=3), color="grey75", hjust=0, size=3, inherit.aes = FALSE)+
+# theme(panel.grid.minor = element_blank(),
+#       axis.text.y = element_text(color = label_color,
+#                                    face = label_face),
+#        panel.grid.major.x = element_line(colour = "grey90", linetype = 2, size = 0.5),
+#       panel.grid.major.y =  element_line(colour = "grey90", linetype = 1, size = 0.13),
+#       text=element_text(size=10,  family="Times"))
 
-library(magick)
-library(magrittr)
-library(here)
+#ggsave("capitalism.png")
+ 
+CAPplot <- image_read("capitalism.png")
+wizgif <- image_read("giphy.gif")
+
+frames <- image_composite(CAPplot, wizgif, offset = "+2000+70")
+
+animation <- image_animate(frames, fps = 10)
+image_write(animation, "beachwiz.gif")
+
+beep()
+
 ```
 
 ### Draft 2
